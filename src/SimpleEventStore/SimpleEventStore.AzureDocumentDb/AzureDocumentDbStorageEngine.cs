@@ -144,7 +144,7 @@ namespace SimpleEventStore.AzureDocumentDb
                 await client.CreateStoredProcedureAsync(commitsLink, new StoredProcedure
                 {
                     Id = AppendStoredProcedureName,
-                    Body = Scripts.appendToStream
+                    Body = Resources.GetString("AppendToStream.js")
                 });
             }
         }

@@ -74,7 +74,7 @@ namespace SimpleEventStore.Tests
         public async Task when_appending_to_an_invalid_stream_id_an_argument_error_is_thrown(string streamId)
         {
             var eventStore = await GetEventStore();
-            await Assert.ThrowsAsync<ArgumentException>(async () => eventStore.AppendToStream(streamId, 0, new EventData(Guid.NewGuid(), new OrderCreated(streamId))));
+            await Assert.ThrowsAsync<ArgumentException>(async () => await eventStore.AppendToStream(streamId, 0, new EventData(Guid.NewGuid(), new OrderCreated(streamId))));
         }
 
         [Fact]

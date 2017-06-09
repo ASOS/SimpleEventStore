@@ -31,7 +31,9 @@ Task("Build")
     .Does(() =>
 {
     // Use MSBuild
-    MSBuild(solutionFile, settings => settings.SetConfiguration(configuration));
+    MSBuild(solutionFile, settings => settings
+        .SetConfiguration(configuration)
+        .UseToolVersion(MSBuildToolVersion.VS2017));
 });
 
 Task("Transform-Unit-Test-Config")
