@@ -4,6 +4,7 @@
     <TargetFrameworks>netstandard1.6;net461</TargetFrameworks>
     <AssemblyName>ASOS.SimpleEventStore.AzureDocumentDb</AssemblyName>
     <PackageId>ASOS.SimpleEventStore.AzureDocumentDb</PackageId>
+    <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
   </PropertyGroup>
 
   <ItemGroup>

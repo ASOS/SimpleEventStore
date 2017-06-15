@@ -6,6 +6,7 @@ using Microsoft.Azure.Documents;
 using Microsoft.Azure.Documents.Client;
 using Microsoft.Azure.Documents.Linq;
 using Newtonsoft.Json;
+using System.Threading;
 
 namespace SimpleEventStore.AzureDocumentDb
 {
@@ -27,12 +28,12 @@ namespace SimpleEventStore.AzureDocumentDb
             this.subscriptionOptions = subscriptionOptions;
         }
 
-        // TODO: Configure the retry policy, also allow the subscription to be canclled (use a CancellationToken)
-        public void Start()
+        // TODO: Configure the retry policy
+        public void Start(CancellationToken cancellationToken)
         {
             workerTask = Task.Run(async () =>
             {
-                while (true)
+                while (!cancellationToken.IsCancellationRequested)
                 {
                     await ReadEvents();
                     await Task.Delay(subscriptionOptions.PollEvery);

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using SimpleEventStore.Tests.Events;
 using Xunit;
+using System.Threading;
 
 namespace SimpleEventStore.Tests
 {
@@ -179,6 +180,53 @@ namespace SimpleEventStore.Tests
 
             Assert.NotNull(resumedEventRead.Task.Result);
             Assert.IsType<OrderDispatched>(resumedEventRead.Task.Result.EventBody);
+        }
+
+        [Fact]
+        public async Task when_a_subscription_is_cancelled_no_further_events_are_received()
+        {
+            var sut = await GetEventStore();
+            var streamId = Guid.NewGuid().ToString();
+            var orderCreatedId = Guid.NewGuid();
+            var receivedEventsInThisStream = 0;
+            var subscriptionBootstrapped = new TaskCompletionSource<bool>();
+
+            using (var cancellationTokenSource = new CancellationTokenSource())
+            {
+                sut.SubscribeToAll(
+                    (events, c) =>
+                    {
+                        foreach (var e in events)
+                        {
+                            if (e.StreamId == streamId)
+                            {
+                                receivedEventsInThisStream++;
+                                subscriptionBootstrapped.SetResult(true);
+                            }
+                        }
+                    },
+                    cancellationTokenSource.Token);
+
+                await sut.AppendToStream(
+                    streamId,
+                    0,
+                    new EventData(orderCreatedId, new OrderCreated(streamId))
+                );
+
+                await subscriptionBootstrapped.Task;
+
+                cancellationTokenSource.Cancel();
+
+                await sut.AppendToStream(
+                    streamId,
+                    1,
+                    new EventData(orderCreatedId, new OrderCreated(streamId))
+                );
+
+                await Task.Delay(TimeSpan.FromSeconds(1));
+
+                Assert.Equal(1, receivedEventsInThisStream);
+            }
         }
 
         private static async Task CreateStreams(Dictionary<string, Queue<EventData>> streams, EventStore sut)

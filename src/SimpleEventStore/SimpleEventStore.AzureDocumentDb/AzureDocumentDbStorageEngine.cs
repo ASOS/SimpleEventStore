@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Microsoft.Azure.Documents;
 using Microsoft.Azure.Documents.Client;
 using Microsoft.Azure.Documents.Linq;
+using System.Threading;
 
 namespace SimpleEventStore.AzureDocumentDb
 {
@@ -83,14 +84,14 @@ namespace SimpleEventStore.AzureDocumentDb
             return events.AsReadOnly();
         }
 
-        public void SubscribeToAll(Action<IReadOnlyCollection<StorageEvent>, string> onNextEvent, string checkpoint)
+        public void SubscribeToAll(Action<IReadOnlyCollection<StorageEvent>, string> onNextEvent, string checkpoint, CancellationToken cancellationToken)
         {
             Guard.IsNotNull(nameof(onNextEvent), onNextEvent);
 
             var subscription = new Subscription(this.client, this.commitsLink, onNextEvent, checkpoint, this.subscriptionOptions);
             subscriptions.Add(subscription);
 
-            subscription.Start();
+            subscription.Start(cancellationToken);
         }
 
         private async Task CreateDatabaseIfItDoesNotExist()

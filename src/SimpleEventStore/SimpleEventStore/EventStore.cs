@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace SimpleEventStore
@@ -44,7 +45,12 @@ namespace SimpleEventStore
 
         public void SubscribeToAll(Action<IReadOnlyCollection<StorageEvent>, string> onNextEvent, string checkpoint = null)
         {
-            engine.SubscribeToAll(onNextEvent, checkpoint);
+            SubscribeToAll(onNextEvent, CancellationToken.None, checkpoint);
+        }
+
+        public void SubscribeToAll(Action<IReadOnlyCollection<StorageEvent>, string> onNextEvent, CancellationToken cancellationToken, string checkpoint = null)
+        {
+            engine.SubscribeToAll(onNextEvent, checkpoint, cancellationToken);
         }
     }
 }

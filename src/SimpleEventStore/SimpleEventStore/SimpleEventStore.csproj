@@ -5,6 +5,7 @@
     <AssemblyName>ASOS.SimpleEventStore</AssemblyName>
     <PackageId>ASOS.SimpleEventStore</PackageId>
     <Description>Simple Event Store (SES) provides a lightweight event sourcing abstraction.</Description>
+    <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
   </PropertyGroup>
 
 </Project>
