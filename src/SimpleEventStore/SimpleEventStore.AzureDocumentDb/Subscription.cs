@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Azure.Documents;
 using Microsoft.Azure.Documents.Client;
@@ -14,12 +13,12 @@ namespace SimpleEventStore.AzureDocumentDb
     {
         private readonly DocumentClient client;
         private readonly Uri commitsLink;
-        private readonly Action<IReadOnlyCollection<StorageEvent>, string> onNextEvent;
+        private readonly EventsReceivedCallback onNextEvent;
         private readonly SubscriptionOptions subscriptionOptions;
         private readonly Dictionary<string, string> checkpoints;
         private Task workerTask;
 
-        public Subscription(DocumentClient client, Uri commitsLink, Action<IReadOnlyCollection<StorageEvent>, string> onNextEvent, string checkpoint, SubscriptionOptions subscriptionOptions)
+        public Subscription(DocumentClient client, Uri commitsLink, EventsReceivedCallback onNextEvent, string checkpoint, SubscriptionOptions subscriptionOptions)
         {
             this.client = client;
             this.commitsLink = commitsLink;
@@ -41,7 +40,7 @@ namespace SimpleEventStore.AzureDocumentDb
             });
         }
 
-        private async Task ReadEvents()
+        public async Task ReadEvents()
         {
             var partitionKeyRanges = new List<PartitionKeyRange>();
             FeedResponse<PartitionKeyRange> pkRangesResponse;
@@ -84,7 +83,16 @@ namespace SimpleEventStore.AzureDocumentDb
                     try
                     {
                         checkpoints[pkRange.Id] = feedResponse.ResponseContinuation;
-                        this.onNextEvent(events.AsReadOnly(), JsonConvert.SerializeObject(checkpoints));
+
+                        if (events.Count > 0)
+                        {
+                            // InMemoryStorageEngine only invokes callback if events were found in the feed.
+                            // This matches the idea of a change-feed that is not coupled to an implementation (i.e. a polling client)
+                            // To optimise writes to the checkpoint token store and to make for a consistent
+                            // testing experience across all stores, DocDB implementation matches InMemory implementation.
+                            // If this is changed, probably best to change InMemory implementation too.
+                            await this.onNextEvent(events.AsReadOnly(), JsonConvert.SerializeObject(checkpoints));
+                        }
                     }
                     catch(Exception)
                     {

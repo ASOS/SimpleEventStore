@@ -43,6 +43,8 @@ namespace SimpleEventStore.Tests
                             }
                         }
                     }
+
+                    return Task.CompletedTask;
                 });
 
             await completionSource.Task;
@@ -80,6 +82,8 @@ namespace SimpleEventStore.Tests
                             }
                         }
                     }
+
+                    return Task.CompletedTask;
                 });
 
             await CreateStreams(streams, sut);
@@ -109,6 +113,8 @@ namespace SimpleEventStore.Tests
                     {
                         subscription1Called.SetResult(true);
                     }
+
+                    return Task.CompletedTask;
                 });
             sut.SubscribeToAll(
                 (events, checkpoint) =>
@@ -117,6 +123,8 @@ namespace SimpleEventStore.Tests
                     {
                         subscription2Called.SetResult(true);
                     }
+
+                    return Task.CompletedTask;
                 });
 
             var streamId = Guid.NewGuid().ToString();
@@ -158,6 +166,8 @@ namespace SimpleEventStore.Tests
                             initialCheckpointObtained.SetResult(c);
                         }
                     }
+
+                    return Task.CompletedTask;
                 });
 
             await initialCheckpointObtained.Task;
@@ -173,6 +183,8 @@ namespace SimpleEventStore.Tests
                             resumedEventRead.SetResult(e);
                         }
                     }
+
+                    return Task.CompletedTask;
                 },
                 checkpoint);
 
@@ -204,6 +216,8 @@ namespace SimpleEventStore.Tests
                                 subscriptionBootstrapped.SetResult(true);
                             }
                         }
+
+                        return Task.CompletedTask;
                     },
                     cancellationTokenSource.Token);
 

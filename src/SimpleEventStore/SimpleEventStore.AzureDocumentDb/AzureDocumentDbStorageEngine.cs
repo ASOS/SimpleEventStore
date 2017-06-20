@@ -84,7 +84,7 @@ namespace SimpleEventStore.AzureDocumentDb
             return events.AsReadOnly();
         }
 
-        public void SubscribeToAll(Action<IReadOnlyCollection<StorageEvent>, string> onNextEvent, string checkpoint, CancellationToken cancellationToken)
+        public void SubscribeToAll(EventsReceivedCallback onNextEvent, string checkpoint, CancellationToken cancellationToken)
         {
             Guard.IsNotNull(nameof(onNextEvent), onNextEvent);
 
@@ -92,6 +92,14 @@ namespace SimpleEventStore.AzureDocumentDb
             subscriptions.Add(subscription);
 
             subscription.Start(cancellationToken);
+        }
+
+        public async Task ReadAllForwards(EventsReceivedCallback onNextEvent, string sinceCheckpoint)
+        {
+            Guard.IsNotNull(nameof(onNextEvent), onNextEvent);
+
+            var subscription = new Subscription(this.client, this.commitsLink, onNextEvent, sinceCheckpoint, new SubscriptionOptions(100, TimeSpan.MaxValue));
+            await subscription.ReadEvents();
         }
 
         private async Task CreateDatabaseIfItDoesNotExist()

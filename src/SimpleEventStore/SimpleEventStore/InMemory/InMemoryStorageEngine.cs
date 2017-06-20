@@ -55,7 +55,7 @@ namespace SimpleEventStore.InMemory
             return Task.FromResult(result);
         }
 
-        public void SubscribeToAll(Action<IReadOnlyCollection<StorageEvent>, string> onNextEvent, string checkpoint, CancellationToken cancellationToken)
+        public void SubscribeToAll(EventsReceivedCallback onNextEvent, string checkpoint, CancellationToken cancellationToken)
         {
             Guard.IsNotNull(nameof(onNextEvent), onNextEvent);
 
@@ -64,19 +64,27 @@ namespace SimpleEventStore.InMemory
             subscription.Start(cancellationToken);
         }
 
+        public async Task ReadAllForwards(EventsReceivedCallback onNextEvent, string sinceCheckpoint)
+        {
+            Guard.IsNotNull(nameof(onNextEvent), onNextEvent);
+
+            var subscription = new Subscription(allEvents, onNextEvent, sinceCheckpoint);
+            await subscription.ReadEvents();
+        }
+
         private class Subscription
         {
             private readonly IEnumerable<StorageEvent> allStream;
-            private readonly Action<IReadOnlyCollection<StorageEvent>, string> onNewEvent;
-            private string initialCheckpoint;
+            private readonly EventsReceivedCallback onNewEvent;
+            private string doNotDispatchUntilCheckpointEncountered;
             private int currentPosition;
             private Task workerTask;
 
-            public Subscription(IEnumerable<StorageEvent> allStream, Action<IReadOnlyCollection<StorageEvent>, string> onNewEvent, string checkpoint)
+            public Subscription(IEnumerable<StorageEvent> allStream, EventsReceivedCallback onNewEvent, string checkpoint)
             {
                 this.allStream = allStream;
                 this.onNewEvent = onNewEvent;
-                this.initialCheckpoint = checkpoint;
+                this.doNotDispatchUntilCheckpointEncountered = checkpoint;
             }
 
             public void Start(CancellationToken cancellationToken)
@@ -85,13 +93,13 @@ namespace SimpleEventStore.InMemory
                 {
                     while (!cancellationToken.IsCancellationRequested)
                     {
-                        ReadEvents();
+                        await ReadEvents();
                         await Task.Delay(500);
                     }
                 });
             }
 
-            private void ReadEvents()
+            public async Task ReadEvents()
             {
                 List<StorageEvent> snapshot;
 
@@ -100,18 +108,23 @@ namespace SimpleEventStore.InMemory
                     snapshot = allStream.Skip(this.currentPosition).ToList();
                 }
 
+                // Note that callback is only invoked if there are new events in the stream.
+                // If that implementation changes (e.g. to invoke on every poll) then might be best to
+                // ensure a consistent testing experience by updating AzureDocumentDbStorageEngine too.
+
+                bool dispatchEvents = this.doNotDispatchUntilCheckpointEncountered == null;
                 foreach (var @event in snapshot)
                 {
-                    bool dispatchEvents = true;
-
-                    if (this.initialCheckpoint == null || this.initialCheckpoint == @event.EventId.ToString())
+                    if (!dispatchEvents && this.doNotDispatchUntilCheckpointEncountered == @event.EventId.ToString())
                     {
-                        dispatchEvents = this.initialCheckpoint == null;
+                        this.doNotDispatchUntilCheckpointEncountered = null;
+                        dispatchEvents = true;
+                        continue;
                     }
 
                     if(dispatchEvents)
                     {
-                        this.onNewEvent(new[] { @event }, @event.EventId.ToString());
+                        await this.onNewEvent(new[] { @event }, @event.EventId.ToString());
                         this.currentPosition++;
                     }
                 }

@@ -43,12 +43,15 @@ namespace SimpleEventStore
             return engine.ReadStreamForwards(streamId, startPosition, numberOfEventsToRead);
         }
 
-        public void SubscribeToAll(Action<IReadOnlyCollection<StorageEvent>, string> onNextEvent, string checkpoint = null)
+        public Task ReadAllForwards(EventsReceivedCallback onNextEvent, string sinceCheckpoint)
+            => engine.ReadAllForwards(onNextEvent, sinceCheckpoint);
+
+        public void SubscribeToAll(EventsReceivedCallback onNextEvent, string checkpoint = null)
         {
             SubscribeToAll(onNextEvent, CancellationToken.None, checkpoint);
         }
 
-        public void SubscribeToAll(Action<IReadOnlyCollection<StorageEvent>, string> onNextEvent, CancellationToken cancellationToken, string checkpoint = null)
+        public void SubscribeToAll(EventsReceivedCallback onNextEvent, CancellationToken cancellationToken, string checkpoint = null)
         {
             engine.SubscribeToAll(onNextEvent, checkpoint, cancellationToken);
         }
