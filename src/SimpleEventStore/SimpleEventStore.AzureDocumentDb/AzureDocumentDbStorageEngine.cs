@@ -23,8 +23,13 @@ namespace SimpleEventStore.AzureDocumentDb
         private readonly List<Subscription> subscriptions = new List<Subscription>();
         private readonly SubscriptionOptions subscriptionOptions;
 
-        public AzureDocumentDbStorageEngine(DocumentClient client, string databaseName, DatabaseOptions databaseOptions, SubscriptionOptions subscriptionOptions)
+        public AzureDocumentDbStorageEngine(DocumentClient client, string databaseName, DatabaseOptions databaseOptions, SubscriptionOptions subscriptionOptions = null)
         {
+            if (subscriptionOptions == null)
+            {
+                subscriptionOptions = new SubscriptionOptions();
+            }
+
             this.client = client;
             this.databaseName = databaseName;
             this.databaseOptions = databaseOptions;
