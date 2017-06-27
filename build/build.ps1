@@ -45,6 +45,8 @@ Param(
     [ValidateSet("Release", "Debug")]
     [string]$Configuration = "Release",
     # TODO: Tidy up and revert back to standard Cake bootstrapper, shouldn't need config in here
+    # TODO Tests currently fail against the local DocumentDB Emulator due to unsupported consistency level.  Change this params to point to
+    # a live DocumentDB instance with Bounded Staleness consistency before running tests.
     [string]$Uri = "https://localhost:8081/",
     [string]$AuthKey = "C2y6yDjf5/R+ob0N8A7Cgv30VRDJIWEHLM+4QDU5DE2nQ9nDuVTqobD4b8mGGyPMbIZnqyMsEcaGQy67XIw/Jw==",
     [string]$ConsistencyLevel = "BoundedStaleness",

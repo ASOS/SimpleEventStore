@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Microsoft.Azure.Documents;
 using Microsoft.Azure.Documents.Client;
 using Microsoft.Azure.Documents.Linq;
+using System.Threading;
 
 namespace SimpleEventStore.AzureDocumentDb
 {
@@ -22,8 +23,13 @@ namespace SimpleEventStore.AzureDocumentDb
         private readonly List<Subscription> subscriptions = new List<Subscription>();
         private readonly SubscriptionOptions subscriptionOptions;
 
-        public AzureDocumentDbStorageEngine(DocumentClient client, string databaseName, DatabaseOptions databaseOptions, SubscriptionOptions subscriptionOptions)
+        public AzureDocumentDbStorageEngine(DocumentClient client, string databaseName, DatabaseOptions databaseOptions, SubscriptionOptions subscriptionOptions = null)
         {
+            if (subscriptionOptions == null)
+            {
+                subscriptionOptions = new SubscriptionOptions();
+            }
+
             this.client = client;
             this.databaseName = databaseName;
             this.databaseOptions = databaseOptions;
@@ -83,14 +89,22 @@ namespace SimpleEventStore.AzureDocumentDb
             return events.AsReadOnly();
         }
 
-        public void SubscribeToAll(Action<IReadOnlyCollection<StorageEvent>, string> onNextEvent, string checkpoint)
+        public void SubscribeToAll(EventsReceivedCallback onNextEvent, string checkpoint, CancellationToken cancellationToken)
         {
             Guard.IsNotNull(nameof(onNextEvent), onNextEvent);
 
             var subscription = new Subscription(this.client, this.commitsLink, onNextEvent, checkpoint, this.subscriptionOptions);
             subscriptions.Add(subscription);
 
-            subscription.Start();
+            subscription.Start(cancellationToken);
+        }
+
+        public async Task ReadAllForwards(EventsReceivedCallback onNextEvent, string sinceCheckpoint)
+        {
+            Guard.IsNotNull(nameof(onNextEvent), onNextEvent);
+
+            var subscription = new Subscription(this.client, this.commitsLink, onNextEvent, sinceCheckpoint, new SubscriptionOptions(100, TimeSpan.MaxValue));
+            await subscription.ReadEvents();
         }
 
         private async Task CreateDatabaseIfItDoesNotExist()
@@ -144,7 +158,7 @@ namespace SimpleEventStore.AzureDocumentDb
                 await client.CreateStoredProcedureAsync(commitsLink, new StoredProcedure
                 {
                     Id = AppendStoredProcedureName,
-                    Body = Scripts.appendToStream
+                    Body = Resources.GetString("AppendToStream.js")
                 });
             }
         }

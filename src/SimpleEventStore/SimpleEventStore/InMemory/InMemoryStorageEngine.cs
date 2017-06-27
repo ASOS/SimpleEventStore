@@ -2,6 +2,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace SimpleEventStore.InMemory
@@ -23,21 +24,28 @@ namespace SimpleEventStore.InMemory
 
                 var firstEvent = events.First();
 
-                if (firstEvent.EventNumber - 1 != streams[streamId].Count)
+                lock (streams[streamId])
                 {
-                    throw new ConcurrencyException($"Concurrency conflict when appending to stream {@streamId}. Expected revision {firstEvent.EventNumber} : Actual revision {streams[streamId].Count}");
+                    if (firstEvent.EventNumber - 1 != streams[streamId].Count)
+                    {
+                        throw new ConcurrencyException($"Concurrency conflict when appending to stream {@streamId}. Expected revision {firstEvent.EventNumber} : Actual revision {streams[streamId].Count}");
+                    }
+
+                    streams[streamId].AddRange(events);
                 }
 
-                streams[streamId].AddRange(events);
                 AddEventsToAllStream(events);
             });
         }
 
         private void AddEventsToAllStream(IEnumerable<StorageEvent> events)
         {
-            foreach (var e in events)
+            lock (allEvents)
             {
-                allEvents.Add(e);
+                foreach (var e in events)
+                {
+                    allEvents.Add(e);
+                }
             }
         }
 
@@ -47,58 +55,76 @@ namespace SimpleEventStore.InMemory
             return Task.FromResult(result);
         }
 
-        public void SubscribeToAll(Action<IReadOnlyCollection<StorageEvent>, string> onNextEvent, string checkpoint)
+        public void SubscribeToAll(EventsReceivedCallback onNextEvent, string checkpoint, CancellationToken cancellationToken)
         {
             Guard.IsNotNull(nameof(onNextEvent), onNextEvent);
 
             var subscription = new Subscription(this.allEvents, onNextEvent, checkpoint);
             this.subscriptions.Add(subscription);
-            subscription.Start();
+            subscription.Start(cancellationToken);
+        }
+
+        public async Task ReadAllForwards(EventsReceivedCallback onNextEvent, string sinceCheckpoint)
+        {
+            Guard.IsNotNull(nameof(onNextEvent), onNextEvent);
+
+            var subscription = new Subscription(allEvents, onNextEvent, sinceCheckpoint);
+            await subscription.ReadEvents();
         }
 
         private class Subscription
         {
             private readonly IEnumerable<StorageEvent> allStream;
-            private readonly Action<IReadOnlyCollection<StorageEvent>, string> onNewEvent;
-            private string initialCheckpoint;
+            private readonly EventsReceivedCallback onNewEvent;
+            private string doNotDispatchUntilCheckpointEncountered;
             private int currentPosition;
             private Task workerTask;
 
-            public Subscription(IEnumerable<StorageEvent> allStream, Action<IReadOnlyCollection<StorageEvent>, string> onNewEvent, string checkpoint)
+            public Subscription(IEnumerable<StorageEvent> allStream, EventsReceivedCallback onNewEvent, string checkpoint)
             {
                 this.allStream = allStream;
                 this.onNewEvent = onNewEvent;
-                this.initialCheckpoint = checkpoint;
+                this.doNotDispatchUntilCheckpointEncountered = checkpoint;
             }
 
-            public void Start()
+            public void Start(CancellationToken cancellationToken)
             {
                 workerTask = Task.Run(async () =>
                 {
-                    while (true)
+                    while (!cancellationToken.IsCancellationRequested)
                     {
-                        ReadEvents();
+                        await ReadEvents();
                         await Task.Delay(500);
                     }
                 });
             }
 
-            private void ReadEvents()
+            public async Task ReadEvents()
             {
-                var snapshot = allStream.Skip(this.currentPosition).ToList();
+                List<StorageEvent> snapshot;
 
+                lock (allStream)
+                {
+                    snapshot = allStream.Skip(this.currentPosition).ToList();
+                }
+
+                // Note that callback is only invoked if there are new events in the stream.
+                // If that implementation changes (e.g. to invoke on every poll) then might be best to
+                // ensure a consistent testing experience by updating AzureDocumentDbStorageEngine too.
+
+                bool dispatchEvents = this.doNotDispatchUntilCheckpointEncountered == null;
                 foreach (var @event in snapshot)
                 {
-                    bool dispatchEvents = true;
-
-                    if (this.initialCheckpoint == null || this.initialCheckpoint == @event.EventId.ToString())
+                    if (!dispatchEvents && this.doNotDispatchUntilCheckpointEncountered == @event.EventId.ToString())
                     {
-                        dispatchEvents = this.initialCheckpoint == null;
+                        this.doNotDispatchUntilCheckpointEncountered = null;
+                        dispatchEvents = true;
+                        continue;
                     }
 
                     if(dispatchEvents)
                     {
-                        this.onNewEvent(new[] { @event }, @event.EventId.ToString());
+                        await this.onNewEvent(new[] { @event }, @event.EventId.ToString());
                         this.currentPosition++;
                     }
                 }

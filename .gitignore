@@ -253,3 +253,4 @@ paket-files/
 
 # Custom ignores
 /build/tools/
+/build/build.LiveDocDB.ps1
