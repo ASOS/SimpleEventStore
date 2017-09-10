@@ -8,29 +8,34 @@ using Microsoft.Azure.Documents.Linq;
 
 namespace SimpleEventStore.AzureDocumentDb
 {
-    internal class AzureDocumentDbStorageEngine : IStorageEngine
+    public class AzureDocumentDbStorageEngine : IStorageEngine
     {
         private const string AppendStoredProcedureName = "appendToStream";
         private const string ConcurrencyConflictErrorKey = "Concurrency conflict.";
 
-        private readonly DocumentClient client;
         private readonly string databaseName;
         private readonly CollectionOptions collectionOptions;
-        private readonly Uri commitsLink;
         private readonly Uri storedProcLink;
         private readonly LoggingOptions loggingOptions;
-        private readonly ISerializationTypeMap typeMap;
+
+        public const string DefaultBucket = "default";
 
         internal AzureDocumentDbStorageEngine(DocumentClient client, string databaseName, CollectionOptions collectionOptions, LoggingOptions loggingOptions, ISerializationTypeMap typeMap)
         {
-            this.client = client;
+            this.Client = client;
             this.databaseName = databaseName;
             this.collectionOptions = collectionOptions;
-            this.commitsLink = UriFactory.CreateDocumentCollectionUri(databaseName, collectionOptions.CollectionName);
+            this.CommitsLink = UriFactory.CreateDocumentCollectionUri(databaseName, collectionOptions.CollectionName);
             this.storedProcLink = UriFactory.CreateStoredProcedureUri(databaseName, collectionOptions.CollectionName, AppendStoredProcedureName);
             this.loggingOptions = loggingOptions;
-            this.typeMap = typeMap;
+            this.TypeMap = typeMap;
         }
+
+        public Uri CommitsLink { get; }
+
+        public ISerializationTypeMap TypeMap { get; }
+
+        public DocumentClient Client { get; }
 
         public async Task<IStorageEngine> Initialise()
         {
@@ -43,11 +48,11 @@ namespace SimpleEventStore.AzureDocumentDb
 
         public async Task AppendToStream(string streamId, IEnumerable<StorageEvent> events)
         {
-            var docs = events.Select(d => DocumentDbStorageEvent.FromStorageEvent(d, this.typeMap)).ToList();
+            var docs = events.Select(d => DocumentDbStorageEvent.FromStorageEvent(d, this.TypeMap, collectionOptions.Bucket)).ToList();
 
             try
             {
-                var result = await this.client.ExecuteStoredProcedureAsync<dynamic>(
+                var result = await this.Client.ExecuteStoredProcedureAsync<dynamic>(
                     storedProcLink, 
                     new RequestOptions { PartitionKey = new PartitionKey(streamId), ConsistencyLevel = this.collectionOptions.ConsistencyLevel },
                     docs);
@@ -69,8 +74,8 @@ namespace SimpleEventStore.AzureDocumentDb
         {
             int endPosition = numberOfEventsToRead == int.MaxValue ? int.MaxValue : startPosition + numberOfEventsToRead;
 
-            var eventsQuery = this.client.CreateDocumentQuery<DocumentDbStorageEvent>(commitsLink)
-                .Where(x => x.StreamId == streamId && x.EventNumber >= startPosition && x.EventNumber <= endPosition)
+            var eventsQuery = this.Client.CreateDocumentQuery<DocumentDbStorageEvent>(CommitsLink)
+                .Where(x => x.StreamId == streamId && (x.Bucket ?? DefaultBucket) == collectionOptions.Bucket && x.EventNumber >= startPosition && x.EventNumber <= endPosition)
                 .OrderBy(x => x.EventNumber)
                 .AsDocumentQuery();
 
@@ -83,7 +88,7 @@ namespace SimpleEventStore.AzureDocumentDb
 
                 foreach (var e in response)
                 {
-                    events.Add(e.ToStorageEvent(this.typeMap));
+                    events.Add(e.ToStorageEvent(this.TypeMap));
                 }
             }
 
@@ -92,14 +97,14 @@ namespace SimpleEventStore.AzureDocumentDb
 
         private async Task CreateDatabaseIfItDoesNotExist()
         {
-            var databaseExistsQuery = client.CreateDatabaseQuery()
+            var databaseExistsQuery = Client.CreateDatabaseQuery()
                 .Where(x => x.Id == databaseName)
                 .Take(1)
                 .AsDocumentQuery();
 
             if (!(await databaseExistsQuery.ExecuteNextAsync<Database>()).Any())
             {
-                await client.CreateDatabaseAsync(new Database {Id = databaseName});
+                await Client.CreateDatabaseAsync(new Database {Id = databaseName});
             }
         }
 
@@ -107,7 +112,7 @@ namespace SimpleEventStore.AzureDocumentDb
         {
             var databaseUri = UriFactory.CreateDatabaseUri(databaseName);
 
-            var commitsCollectionQuery = client.CreateDocumentCollectionQuery(databaseUri)
+            var commitsCollectionQuery = Client.CreateDocumentCollectionQuery(databaseUri)
                 .Where(x => x.Id == collectionOptions.CollectionName)
                 .Take(1)
                 .AsDocumentQuery();
@@ -126,22 +131,34 @@ namespace SimpleEventStore.AzureDocumentDb
                     OfferThroughput = collectionOptions.CollectionRequestUnits
                 };
 
-                await client.CreateDocumentCollectionAsync(databaseUri, collection, requestOptions);
+                await Client.CreateDocumentCollectionAsync(databaseUri, collection, requestOptions);
             }
         }
 
         private async Task CreateAppendStoredProcedureIfItDoesNotExist()
         {
-            var query = client.CreateStoredProcedureQuery(commitsLink)
+            var query = Client.CreateStoredProcedureQuery(CommitsLink)
                 .Where(x => x.Id == AppendStoredProcedureName)
                 .AsDocumentQuery();
 
+            var sprc = await query.ExecuteNextAsync<StoredProcedure>();
+            var appendToStreamSproc = Resources.GetString("AppendToStream.js");
+            if (sprc.Count > 0)
+            {
+                var tmp = sprc.FirstOrDefault();
+                if (tmp != null && tmp.Body != appendToStreamSproc)
+                {
+                    //  can't use replacesproc here because it's not supported on partitioned collections
+                    await Client.DeleteStoredProcedureAsync(tmp.SelfLink);
+                }
+            }
+
             if (!(await query.ExecuteNextAsync<StoredProcedure>()).Any())
             { 
-                await client.CreateStoredProcedureAsync(commitsLink, new StoredProcedure
+                await Client.CreateStoredProcedureAsync(CommitsLink, new StoredProcedure
                 {
                     Id = AppendStoredProcedureName,
-                    Body = Resources.GetString("AppendToStream.js")
+                    Body = appendToStreamSproc
                 });
             }
         }

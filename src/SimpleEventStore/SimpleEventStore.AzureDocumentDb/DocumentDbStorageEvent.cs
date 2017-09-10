@@ -1,6 +1,4 @@
 using System;
-using System.Runtime.Serialization;
-using System.Security.Cryptography.X509Certificates;
 using Microsoft.Azure.Documents;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
@@ -33,13 +31,20 @@ namespace SimpleEventStore.AzureDocumentDb
         [JsonProperty("eventNumber")]
         public int EventNumber { get; set; }
 
-        public static DocumentDbStorageEvent FromStorageEvent(StorageEvent @event, ISerializationTypeMap typeMap)
+        [JsonProperty("bucket")]
+        public string Bucket { get; set; }
+
+        public static DocumentDbStorageEvent FromStorageEvent(StorageEvent @event, ISerializationTypeMap typeMap, string bucket)
         {
-            var docDbEvent = new DocumentDbStorageEvent();
-            docDbEvent.Id = $"{@event.StreamId}:{@event.EventNumber}";
-            docDbEvent.EventId = @event.EventId;
-            docDbEvent.Body = JObject.FromObject(@event.EventBody);
-            docDbEvent.BodyType = typeMap.GetNameFromType(@event.EventBody.GetType());
+            var docDbEvent = new DocumentDbStorageEvent
+            {
+                Id = $"{@event.StreamId}:{bucket}:{@event.EventNumber}",
+                EventId = @event.EventId,
+                Body = JObject.FromObject(@event.EventBody),
+                BodyType = typeMap.GetNameFromType(@event.EventBody.GetType()),
+                Bucket = bucket
+            };
+
             if (@event.Metadata != null)
             {
                 docDbEvent.Metadata = JObject.FromObject(@event.Metadata);
@@ -62,7 +67,8 @@ namespace SimpleEventStore.AzureDocumentDb
                 Metadata = document.GetPropertyValue<JObject>("metadata"),
                 MetadataType = document.GetPropertyValue<string>("metadataType"),
                 StreamId = document.GetPropertyValue<string>("streamId"),
-                EventNumber = document.GetPropertyValue<int>("eventNumber")
+                EventNumber = document.GetPropertyValue<int>("eventNumber"),
+                Bucket = document.GetPropertyValue<string>("bucket")
             };
 
             return docDbEvent;

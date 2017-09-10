@@ -9,6 +9,7 @@ namespace SimpleEventStore.AzureDocumentDb
             this.ConsistencyLevel = ConsistencyLevel.Session;
             this.CollectionRequestUnits = 400;
             this.CollectionName = "Commits";
+            this.Bucket = AzureDocumentDbStorageEngine.DefaultBucket;
         }
 
         public string CollectionName { get; set; }
@@ -16,5 +17,7 @@ namespace SimpleEventStore.AzureDocumentDb
         public ConsistencyLevel ConsistencyLevel { get; set; }
 
         public int CollectionRequestUnits { get; set; }
+
+        public string Bucket { get; set; }
     }
 }
