@@ -11,7 +11,7 @@ namespace SimpleEventStore.AzureDocumentDb.Tests
 {
     internal static class StorageEngineFactory
     {
-        internal static async Task<IStorageEngine> Create(string databaseName)
+        internal static async Task<IStorageEngine> Create(string databaseName, string bucket = AzureDocumentDbStorageEngine.DefaultBucket)
         {
             var config = new ConfigurationBuilder()
                 .SetBasePath(Directory.GetCurrentDirectory())
@@ -35,6 +35,7 @@ namespace SimpleEventStore.AzureDocumentDb.Tests
                 {
                     o.ConsistencyLevel = consistencyLevelEnum;
                     o.CollectionRequestUnits = 400;
+                    o.Bucket = bucket;
                 })
                 .UseTypeMap(new ConfigurableSerializationTypeMap()
                     .RegisterTypes(
