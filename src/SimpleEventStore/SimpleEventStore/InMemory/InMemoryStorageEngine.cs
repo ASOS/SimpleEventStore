@@ -13,6 +13,9 @@ namespace SimpleEventStore.InMemory
         private readonly List<StorageEvent> allEvents = new List<StorageEvent>();
 
         public Task AppendToStream(string streamId, IEnumerable<StorageEvent> events)
+            => AppendToStream(streamId, events, ConcurrencyCheck.ThrowExceptionOnConflict);
+
+        public Task AppendToStream(string streamId, IEnumerable<StorageEvent> events, ConcurrencyCheck concurrencyCheck)
         {
             return Task.Run(() =>
             {
@@ -23,7 +26,8 @@ namespace SimpleEventStore.InMemory
 
                 var firstEvent = events.First();
 
-                if (firstEvent.EventNumber - 1 != streams[streamId].Count)
+                if (concurrencyCheck != ConcurrencyCheck.AllowMissingAndDuplicatedEventNumbersAndAppendRegardless
+                    && firstEvent.EventNumber - 1 != streams[streamId].Count)
                 {
                     throw new ConcurrencyException($"Concurrency conflict when appending to stream {streamId}. Expected revision {firstEvent.EventNumber} : Actual revision {streams[streamId].Count}");
                 }
