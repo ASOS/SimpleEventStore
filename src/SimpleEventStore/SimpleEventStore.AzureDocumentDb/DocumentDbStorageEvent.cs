@@ -33,16 +33,16 @@ namespace SimpleEventStore.AzureDocumentDb
         [JsonProperty("eventNumber")]
         public int EventNumber { get; set; }
 
-        public static DocumentDbStorageEvent FromStorageEvent(StorageEvent @event, ISerializationTypeMap typeMap)
+        public static DocumentDbStorageEvent FromStorageEvent(StorageEvent @event, ISerializationTypeMap typeMap, JsonSerializer serializer)
         {
             var docDbEvent = new DocumentDbStorageEvent();
             docDbEvent.Id = $"{@event.StreamId}:{@event.EventNumber}";
             docDbEvent.EventId = @event.EventId;
-            docDbEvent.Body = JObject.FromObject(@event.EventBody);
+            docDbEvent.Body = JObject.FromObject(@event.EventBody, serializer);
             docDbEvent.BodyType = typeMap.GetNameFromType(@event.EventBody.GetType());
             if (@event.Metadata != null)
             {
-                docDbEvent.Metadata = JObject.FromObject(@event.Metadata);
+                docDbEvent.Metadata = JObject.FromObject(@event.Metadata, serializer);
                 docDbEvent.MetadataType = typeMap.GetNameFromType(@event.Metadata.GetType());
             }
             docDbEvent.StreamId = @event.StreamId;
@@ -68,10 +68,10 @@ namespace SimpleEventStore.AzureDocumentDb
             return docDbEvent;
         }
 
-        public StorageEvent ToStorageEvent(ISerializationTypeMap typeMap)
+        public StorageEvent ToStorageEvent(ISerializationTypeMap typeMap, JsonSerializer serializer)
         {
-            object body = Body.ToObject(typeMap.GetTypeFromName(BodyType));
-            object metadata = Metadata?.ToObject(typeMap.GetTypeFromName(MetadataType));
+            object body = Body.ToObject(typeMap.GetTypeFromName(BodyType), serializer);
+            object metadata = Metadata?.ToObject(typeMap.GetTypeFromName(MetadataType), serializer);
             return new StorageEvent(StreamId, new EventData(EventId, body, metadata), EventNumber);
         }
     }

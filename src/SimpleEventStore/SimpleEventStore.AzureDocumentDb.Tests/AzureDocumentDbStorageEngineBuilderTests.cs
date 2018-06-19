@@ -47,6 +47,13 @@ namespace SimpleEventStore.AzureDocumentDb.Tests
             Assert.Throws<ArgumentNullException>(() => builder.UseTypeMap(null));
         }
 
+        [Test]
+        public void when_setting_the_jsonserializationsettings_it_must_be_supplied()
+        {
+            var builder = new AzureDocumentDbStorageEngineBuilder(CreateClient(), "Test");
+            Assert.Throws<ArgumentNullException>(() => builder.UseJsonSerializerSettings(null));
+        }
+
         private static DocumentClient CreateClient()
         {
             var client = new DocumentClient(new Uri("https://localhost:8081/"), "C2y6yDjf5/R+ob0N8A7Cgv30VRDJIWEHLM+4QDU5DE2nQ9nDuVTqobD4b8mGGyPMbIZnqyMsEcaGQy67XIw/Jw==");

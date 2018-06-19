@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Reflection;
+using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using SimpleEventStore.Tests.Events;
 using NUnit.Framework;
@@ -29,7 +30,7 @@ namespace SimpleEventStore.AzureDocumentDb.Tests
                 typeof(OrderCreated).GetTypeInfo().Assembly,
                 t => t.Namespace != null && t.Namespace.EndsWith("Events"),
                 t => t.Name);
-            var result = sut.ToStorageEvent(typeMap);
+            var result = sut.ToStorageEvent(typeMap, JsonSerializer.CreateDefault());
 
             Assert.That(result.StreamId, Is.EqualTo(sut.StreamId));
             Assert.That(((OrderCreated)result.EventBody).OrderId, Is.EqualTo(body.OrderId));

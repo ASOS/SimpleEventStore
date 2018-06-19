@@ -1,5 +1,6 @@
 ﻿using System;
 using Microsoft.Azure.Documents.Client;
+using Newtonsoft.Json;
 
 namespace SimpleEventStore.AzureDocumentDb
 {
@@ -10,6 +11,7 @@ namespace SimpleEventStore.AzureDocumentDb
         private readonly CollectionOptions collectionOptions = new CollectionOptions();
         private readonly LoggingOptions loggingOptions = new LoggingOptions();
         private ISerializationTypeMap typeMap = new DefaultSerializationTypeMap();
+        private JsonSerializerSettings jsonSerializerSettings = new JsonSerializerSettings();
 
         public AzureDocumentDbStorageEngineBuilder(DocumentClient client, string databaseName)
         {
@@ -44,9 +46,16 @@ namespace SimpleEventStore.AzureDocumentDb
             return this;
         }
 
+        public AzureDocumentDbStorageEngineBuilder UseJsonSerializerSettings(JsonSerializerSettings settings)
+        {
+            Guard.IsNotNull(nameof(settings), settings);
+            this.jsonSerializerSettings = settings;
+            return this;
+        }
+
         public IStorageEngine Build()
         {
-            var engine = new AzureDocumentDbStorageEngine(this.client, this.databaseName, this.collectionOptions, this.loggingOptions, this.typeMap);
+            var engine = new AzureDocumentDbStorageEngine(this.client, this.databaseName, this.collectionOptions, this.loggingOptions, this.typeMap, this.jsonSerializerSettings);
             return engine;
         }
     }

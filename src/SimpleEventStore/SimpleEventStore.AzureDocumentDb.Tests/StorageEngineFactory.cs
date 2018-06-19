@@ -2,8 +2,8 @@
 using System.Reflection;
 using System.Threading.Tasks;
 using Microsoft.Azure.Documents;
-using Microsoft.Azure.Documents.Client;
 using Microsoft.Extensions.Configuration;
+using Newtonsoft.Json;
 using SimpleEventStore.Tests.Events;
 
 namespace SimpleEventStore.AzureDocumentDb.Tests
@@ -11,6 +11,11 @@ namespace SimpleEventStore.AzureDocumentDb.Tests
     internal static class StorageEngineFactory
     {
         internal static async Task<IStorageEngine> Create(string databaseName, Action<CollectionOptions> collectionOverrides = null)
+        {
+            return await Create(databaseName, new JsonSerializerSettings(), collectionOverrides);
+        }
+
+        internal static async Task<IStorageEngine> Create(string databaseName, JsonSerializerSettings settings, Action<CollectionOptions> collectionOverrides = null)
         {
             var config = new ConfigurationBuilder()
                 .AddJsonFile("appsettings.json")
@@ -24,7 +29,7 @@ namespace SimpleEventStore.AzureDocumentDb.Tests
                 throw new Exception($"The ConsistencyLevel value {consistencyLevel} is not supported");
             }
 
-            var client = DocumentClientFactory.Create(databaseName);
+            var client = DocumentClientFactory.Create(databaseName, settings);
 
             return await new AzureDocumentDbStorageEngineBuilder(client, databaseName)
                 .UseCollection(o =>
@@ -38,6 +43,7 @@ namespace SimpleEventStore.AzureDocumentDb.Tests
                         typeof(OrderCreated).GetTypeInfo().Assembly,
                         t => t.Namespace != null && t.Namespace.EndsWith("Events"),
                         t => t.Name))
+                .UseJsonSerializerSettings(settings)
                 .Build()
                 .Initialise();
         }

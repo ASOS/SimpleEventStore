@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Microsoft.Azure.Documents;
 using Microsoft.Azure.Documents.Client;
 using Microsoft.Azure.Documents.Linq;
+using Newtonsoft.Json;
 
 namespace SimpleEventStore.AzureDocumentDb
 {
@@ -20,8 +21,9 @@ namespace SimpleEventStore.AzureDocumentDb
         private readonly Uri storedProcLink;
         private readonly LoggingOptions loggingOptions;
         private readonly ISerializationTypeMap typeMap;
+        private readonly JsonSerializer jsonSerializer;
 
-        internal AzureDocumentDbStorageEngine(DocumentClient client, string databaseName, CollectionOptions collectionOptions, LoggingOptions loggingOptions, ISerializationTypeMap typeMap)
+        internal AzureDocumentDbStorageEngine(DocumentClient client, string databaseName, CollectionOptions collectionOptions, LoggingOptions loggingOptions, ISerializationTypeMap typeMap, JsonSerializerSettings settings)
         {
             this.client = client;
             this.databaseName = databaseName;
@@ -30,6 +32,7 @@ namespace SimpleEventStore.AzureDocumentDb
             this.storedProcLink = UriFactory.CreateStoredProcedureUri(databaseName, collectionOptions.CollectionName, AppendStoredProcedureName);
             this.loggingOptions = loggingOptions;
             this.typeMap = typeMap;
+            this.jsonSerializer = JsonSerializer.Create(settings);
         }
 
         public async Task<IStorageEngine> Initialise()
@@ -43,7 +46,7 @@ namespace SimpleEventStore.AzureDocumentDb
 
         public async Task AppendToStream(string streamId, IEnumerable<StorageEvent> events)
         {
-            var docs = events.Select(d => DocumentDbStorageEvent.FromStorageEvent(d, this.typeMap)).ToList();
+            var docs = events.Select(d => DocumentDbStorageEvent.FromStorageEvent(d, this.typeMap, this.jsonSerializer)).ToList();
 
             try
             {
@@ -83,7 +86,7 @@ namespace SimpleEventStore.AzureDocumentDb
 
                 foreach (var e in response)
                 {
-                    events.Add(e.ToStorageEvent(this.typeMap));
+                    events.Add(e.ToStorageEvent(this.typeMap, this.jsonSerializer));
                 }
             }
 
