@@ -23,7 +23,7 @@ namespace SimpleEventStore.AzureDocumentDb
         private readonly ISerializationTypeMap typeMap;
         private readonly JsonSerializer jsonSerializer;
 
-        internal AzureDocumentDbStorageEngine(DocumentClient client, string databaseName, CollectionOptions collectionOptions, LoggingOptions loggingOptions, ISerializationTypeMap typeMap, JsonSerializerSettings settings)
+        internal AzureDocumentDbStorageEngine(DocumentClient client, string databaseName, CollectionOptions collectionOptions, LoggingOptions loggingOptions, ISerializationTypeMap typeMap, JsonSerializer serializer)
         {
             this.client = client;
             this.databaseName = databaseName;
@@ -32,7 +32,7 @@ namespace SimpleEventStore.AzureDocumentDb
             this.storedProcLink = UriFactory.CreateStoredProcedureUri(databaseName, collectionOptions.CollectionName, AppendStoredProcedureName);
             this.loggingOptions = loggingOptions;
             this.typeMap = typeMap;
-            this.jsonSerializer = JsonSerializer.Create(settings);
+            this.jsonSerializer = serializer;
         }
 
         public async Task<IStorageEngine> Initialise()
