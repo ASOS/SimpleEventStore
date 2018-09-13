@@ -14,8 +14,9 @@ namespace SimpleEventStore.AzureDocumentDb.Tests
         [Test]
         public void when_building_from_a_write_response_all_target_fields_are_mapped()
         {
-            var result = ResponseInformation.FromWriteResponse(new FakeStoredProcedureResponse<dynamic>());
+            var result = ResponseInformation.FromWriteResponse(Expected.RequestIdentifier, new FakeStoredProcedureResponse<dynamic>());
 
+            Assert.That(result.RequestIdentifier, Is.EqualTo(Expected.RequestIdentifier));
             Assert.That(result.CurrentResourceQuotaUsage, Is.EqualTo(Expected.CurrentResourceQuotaUsage));
             Assert.That(result.MaxResourceQuota, Is.EqualTo(Expected.MaxResourceQuota));
             Assert.That(result.RequestCharge, Is.EqualTo(Expected.RequestCharge));
@@ -25,8 +26,9 @@ namespace SimpleEventStore.AzureDocumentDb.Tests
         [Test]
         public void when_building_from_a_read_response_all_target_fields_are_mapped()
         {
-            var result = ResponseInformation.FromReadResponse(new FakeFeedResponse<DocumentDbStorageEvent>());
+            var result = ResponseInformation.FromReadResponse(Expected.RequestIdentifier, new FakeFeedResponse<DocumentDbStorageEvent>());
 
+            Assert.That(result.RequestIdentifier, Is.EqualTo(Expected.RequestIdentifier));
             Assert.That(result.CurrentResourceQuotaUsage, Is.EqualTo(Expected.CurrentResourceQuotaUsage));
             Assert.That(result.MaxResourceQuota, Is.EqualTo(Expected.MaxResourceQuota));
             Assert.That(result.RequestCharge, Is.EqualTo(Expected.RequestCharge));
@@ -36,8 +38,9 @@ namespace SimpleEventStore.AzureDocumentDb.Tests
         [Test]
         public void when_building_from_a_subscription_read_response_all_target_fields_are_mapped()
         {
-            var result = ResponseInformation.FromSubscriptionReadResponse(new FakeFeedResponse<Document>());
+            var result = ResponseInformation.FromSubscriptionReadResponse(Expected.RequestIdentifier, new FakeFeedResponse<Document>());
 
+            Assert.That(result.RequestIdentifier, Is.EqualTo(Expected.RequestIdentifier));
             Assert.That(result.CurrentResourceQuotaUsage, Is.EqualTo(Expected.CurrentResourceQuotaUsage));
             Assert.That(result.MaxResourceQuota, Is.EqualTo(Expected.MaxResourceQuota));
             Assert.That(result.RequestCharge, Is.EqualTo(Expected.RequestCharge));
@@ -46,6 +49,7 @@ namespace SimpleEventStore.AzureDocumentDb.Tests
 
         private static class Expected
         {
+            internal const string RequestIdentifier = "TEST-Identifier";
             internal const string CurrentResourceQuotaUsage = "TEST-CurrentResourceQuotaUsage";
             internal const string MaxResourceQuota = "TEST-MaxResourceQuota";
             internal const double RequestCharge = 100d;
