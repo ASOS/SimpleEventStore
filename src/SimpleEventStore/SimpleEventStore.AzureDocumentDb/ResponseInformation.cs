@@ -6,6 +6,8 @@ namespace SimpleEventStore.AzureDocumentDb
 {
     public class ResponseInformation
     {
+        public string RequestIdentifier { get; private set; }
+
         public string CurrentResourceQuotaUsage { get; private set; }
 
         public string MaxResourceQuota { get; private set; }
@@ -14,10 +16,11 @@ namespace SimpleEventStore.AzureDocumentDb
 
         public NameValueCollection ResponseHeaders { get; private set; }
 
-        public static ResponseInformation FromWriteResponse(IStoredProcedureResponse<dynamic> response)
+        public static ResponseInformation FromWriteResponse(string requestIdentifier, IStoredProcedureResponse<dynamic> response)
         {
             return new ResponseInformation
             {
+                RequestIdentifier = requestIdentifier,
                 CurrentResourceQuotaUsage = response.CurrentResourceQuotaUsage,
                 MaxResourceQuota = response.MaxResourceQuota,
                 RequestCharge = response.RequestCharge,
@@ -25,10 +28,11 @@ namespace SimpleEventStore.AzureDocumentDb
             };
         }
 
-        public static ResponseInformation FromReadResponse(IFeedResponse<DocumentDbStorageEvent> response)
+        public static ResponseInformation FromReadResponse(string requestIdentifier, IFeedResponse<DocumentDbStorageEvent> response)
         {
             return new ResponseInformation
             {
+                RequestIdentifier = requestIdentifier,
                 CurrentResourceQuotaUsage = response.CurrentResourceQuotaUsage,
                 MaxResourceQuota = response.MaxResourceQuota,
                 RequestCharge = response.RequestCharge,
@@ -36,10 +40,11 @@ namespace SimpleEventStore.AzureDocumentDb
             };
         }
 
-        public static ResponseInformation FromSubscriptionReadResponse(IFeedResponse<Document> response)
+        public static ResponseInformation FromSubscriptionReadResponse(string requestIdentifier, IFeedResponse<Document> response)
         {
             return new ResponseInformation
             {
+                RequestIdentifier = requestIdentifier,
                 CurrentResourceQuotaUsage = response.CurrentResourceQuotaUsage,
                 MaxResourceQuota = response.MaxResourceQuota,
                 RequestCharge = response.RequestCharge,

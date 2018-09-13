@@ -48,11 +48,11 @@ namespace SimpleEventStore.AzureDocumentDb
             try
             {
                 var result = await this.client.ExecuteStoredProcedureAsync<dynamic>(
-                    storedProcLink, 
+                    storedProcLink,
                     new RequestOptions { PartitionKey = new PartitionKey(streamId), ConsistencyLevel = this.collectionOptions.ConsistencyLevel },
                     docs);
 
-                loggingOptions.OnSuccess(ResponseInformation.FromWriteResponse(result));
+                loggingOptions.OnSuccess(ResponseInformation.FromWriteResponse(nameof(AppendToStream), result));
             }
             catch (DocumentClientException ex)
             {
@@ -79,7 +79,7 @@ namespace SimpleEventStore.AzureDocumentDb
             while (eventsQuery.HasMoreResults)
             {
                 var response = await eventsQuery.ExecuteNextAsync<DocumentDbStorageEvent>();
-                loggingOptions.OnSuccess(ResponseInformation.FromReadResponse(response));
+                loggingOptions.OnSuccess(ResponseInformation.FromReadResponse(nameof(ReadStreamForwards), response));
 
                 foreach (var e in response)
                 {
@@ -104,7 +104,7 @@ namespace SimpleEventStore.AzureDocumentDb
             collection.DefaultTimeToLive = collectionOptions.DefaultTimeToLive;
             collection.PartitionKey.Paths.Add("/streamId");
             collection.IndexingPolicy.IncludedPaths.Add(new IncludedPath { Path = "/*" });
-            collection.IndexingPolicy.ExcludedPaths.Add(new ExcludedPath { Path = "/body/*"});
+            collection.IndexingPolicy.ExcludedPaths.Add(new ExcludedPath { Path = "/body/*" });
             collection.IndexingPolicy.ExcludedPaths.Add(new ExcludedPath { Path = "/metadata/*" });
 
             var requestOptions = new RequestOptions
@@ -122,7 +122,7 @@ namespace SimpleEventStore.AzureDocumentDb
                 .AsDocumentQuery();
 
             if (!(await query.ExecuteNextAsync<StoredProcedure>()).Any())
-            { 
+            {
                 await client.CreateStoredProcedureAsync(commitsLink, new StoredProcedure
                 {
                     Id = AppendStoredProcedureName,
