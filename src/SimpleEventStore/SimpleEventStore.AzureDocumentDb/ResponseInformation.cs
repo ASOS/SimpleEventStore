@@ -20,6 +20,7 @@ namespace SimpleEventStore.AzureDocumentDb
         {
             return new ResponseInformation
             {
+                RequestIdentifier = requestIdentifier,
                 CurrentResourceQuotaUsage = response.CurrentResourceQuotaUsage,
                 MaxResourceQuota = response.MaxResourceQuota,
                 RequestCharge = response.RequestCharge,
@@ -31,6 +32,7 @@ namespace SimpleEventStore.AzureDocumentDb
         {
             return new ResponseInformation
             {
+                RequestIdentifier = requestIdentifier,
                 CurrentResourceQuotaUsage = response.CurrentResourceQuotaUsage,
                 MaxResourceQuota = response.MaxResourceQuota,
                 RequestCharge = response.RequestCharge,
@@ -42,6 +44,7 @@ namespace SimpleEventStore.AzureDocumentDb
         {
             return new ResponseInformation
             {
+                RequestIdentifier = requestIdentifier,
                 CurrentResourceQuotaUsage = response.CurrentResourceQuotaUsage,
                 MaxResourceQuota = response.MaxResourceQuota,
                 RequestCharge = response.RequestCharge,
