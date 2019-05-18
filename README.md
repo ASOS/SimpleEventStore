@@ -60,6 +60,7 @@ return await new AzureDocumentDbStorageEngineBuilder(client, databaseName)
 			typeof(OrderCreated).GetTypeInfo().Assembly,
 			t => t.Namespace.EndsWith("Events"),
 			t => t.Name))
+	.UseJsonSerializerSettings(settings)
 	.Build()
 	.Initialise();
 ```
@@ -82,6 +83,11 @@ Allows you to control the event body/metadata type names.  Built in implementati
 - ConfigurableSerializationTypeMap - provides full control.
 
 While the default implementation is simple, this isn't great for versioning as contract assembly version number changes will render events unreadable.  Therefore the configurable implementation or your own implementation is recommended.
+
+### UseJsonSerializerSettings
+Allows you to customise JSON serialization of the event body and metadata.  If you do not call this method a default JsonSerializerSettings instance is used.
+
+For consistent serialization provide the same serialzer settings to your DocumentClient.
 
 ### Initialise
 Calling the operation creates the underlying collection based on the DatabaseOptions.  This ensures the required stored procedure is present too.  It is safe to call this multiple times.
