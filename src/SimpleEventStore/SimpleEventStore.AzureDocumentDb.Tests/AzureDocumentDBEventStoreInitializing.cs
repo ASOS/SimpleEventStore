@@ -45,7 +45,7 @@ namespace SimpleEventStore.AzureDocumentDb.Tests
             Assert.That(collection.PartitionKey.Paths.Single(), Is.EqualTo("/streamId"));
             Assert.That(collection.IndexingPolicy.IncludedPaths.Count, Is.EqualTo(1));
             Assert.That(collection.IndexingPolicy.IncludedPaths[0].Path, Is.EqualTo("/*"));
-            Assert.That(collection.IndexingPolicy.ExcludedPaths.Count, Is.EqualTo(2));
+            Assert.That(collection.IndexingPolicy.ExcludedPaths.Count, Is.EqualTo(3));
             Assert.That(collection.IndexingPolicy.ExcludedPaths[0].Path, Is.EqualTo("/body/*"));
             Assert.That(collection.IndexingPolicy.ExcludedPaths[1].Path, Is.EqualTo("/metadata/*"));
         }
