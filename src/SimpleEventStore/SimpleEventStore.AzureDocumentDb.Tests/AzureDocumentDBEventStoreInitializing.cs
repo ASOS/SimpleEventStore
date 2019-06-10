@@ -1,24 +1,22 @@
 using System;
 using System.Linq;
-using System.Net;
 using System.Threading.Tasks;
 using Microsoft.Azure.Documents;
 using Microsoft.Azure.Documents.Client;
-using Microsoft.Azure.Documents.Linq;
 using NUnit.Framework;
 
 namespace SimpleEventStore.AzureDocumentDb.Tests
 {
     [TestFixture]
-    public class AzureDocumentDBEventStoreInitializing
+    public class AzureDocumentDbEventStoreInitializing
     {
         private const string DatabaseName = "InitializeTests";
 
         [OneTimeTearDown]
-        public async Task TearDownDatabase()
+        public Task TearDownDatabase()
         {
             var client = DocumentClientFactory.Create(DatabaseName);
-            await client.DeleteDatabaseAsync(UriFactory.CreateDatabaseUri(DatabaseName));
+            return client.DeleteDatabaseAsync(UriFactory.CreateDatabaseUri(DatabaseName));
         }
 
         [Test]

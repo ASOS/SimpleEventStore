@@ -1,6 +1,4 @@
 using System;
-using System.Runtime.Serialization;
-using System.Security.Cryptography.X509Certificates;
 using Microsoft.Azure.Documents;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;

@@ -93,18 +93,21 @@ namespace SimpleEventStore.AzureDocumentDb
             return events.AsReadOnly();
         }
 
-        private async Task CreateDatabaseIfItDoesNotExist()
+        private Task CreateDatabaseIfItDoesNotExist()
         {
-            await client.CreateDatabaseIfNotExistsAsync(new Database { Id = databaseName });
+            return client.CreateDatabaseIfNotExistsAsync(new Database { Id = databaseName });
         }
 
-        private async Task CreateCollectionIfItDoesNotExist()
+        private Task CreateCollectionIfItDoesNotExist()
         {
             var databaseUri = UriFactory.CreateDatabaseUri(databaseName);
 
-            var collection = new DocumentCollection();
-            collection.Id = collectionOptions.CollectionName;
-            collection.DefaultTimeToLive = collectionOptions.DefaultTimeToLive;
+            var collection = new DocumentCollection
+            {
+                Id = collectionOptions.CollectionName,
+                DefaultTimeToLive = collectionOptions.DefaultTimeToLive
+            };
+
             collection.PartitionKey.Paths.Add("/streamId");
             collection.IndexingPolicy.IncludedPaths.Add(new IncludedPath { Path = "/*" });
             collection.IndexingPolicy.ExcludedPaths.Add(new ExcludedPath { Path = "/body/*" });
@@ -115,7 +118,7 @@ namespace SimpleEventStore.AzureDocumentDb
                 OfferThroughput = collectionOptions.CollectionRequestUnits
             };
 
-            await client.CreateDocumentCollectionIfNotExistsAsync(databaseUri, collection, requestOptions);
+            return client.CreateDocumentCollectionIfNotExistsAsync(databaseUri, collection, requestOptions);
         }
 
         private async Task CreateAppendStoredProcedureIfItDoesNotExist()

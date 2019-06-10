@@ -21,10 +21,10 @@ namespace SimpleEventStore.AzureDocumentDb.Tests
             await sut.AppendToStream(streamId, 0, new EventData(Guid.NewGuid(), new OrderCreated("TEST-ORDER")));
 
             Assert.NotNull(response);
-            TestContext.Out.WriteLine($"Charge: {response.RequestCharge}");
-            TestContext.Out.WriteLine($"Quota Usage: {response.CurrentResourceQuotaUsage}");
-            TestContext.Out.WriteLine($"Max Resource Quote: {response.MaxResourceQuota}");
-            TestContext.Out.WriteLine($"Response headers: {response.ResponseHeaders}");
+            await TestContext.Out.WriteLineAsync($"Charge: {response.RequestCharge}");
+            await TestContext.Out.WriteLineAsync($"Quota Usage: {response.CurrentResourceQuotaUsage}");
+            await TestContext.Out.WriteLineAsync($"Max Resource Quote: {response.MaxResourceQuota}");
+            await TestContext.Out.WriteLineAsync($"Response headers: {response.ResponseHeaders}");
         }
 
         [Test]
@@ -40,7 +40,7 @@ namespace SimpleEventStore.AzureDocumentDb.Tests
             Assert.That(logCount, Is.EqualTo(2));
         }
 
-        private static async Task<IStorageEngine> CreateStorageEngine(Action<ResponseInformation> onSuccessCallback, string databaseName = "LoggingTests")
+        private static Task<IStorageEngine> CreateStorageEngine(Action<ResponseInformation> onSuccessCallback, string databaseName = "LoggingTests")
         {
             var config = new ConfigurationBuilder()
                 .AddJsonFile("appsettings.json")
@@ -57,7 +57,7 @@ namespace SimpleEventStore.AzureDocumentDb.Tests
 
             DocumentClient client = new DocumentClient(new Uri(documentDbUri), authKey);
 
-            return await new AzureDocumentDbStorageEngineBuilder(client, databaseName)
+            return new AzureDocumentDbStorageEngineBuilder(client, databaseName)
                 .UseCollection(o =>
                 {
                     o.ConsistencyLevel = consistencyLevelEnum;

@@ -10,33 +10,32 @@ namespace SimpleEventStore.AzureDocumentDb.Tests
 {
     internal static class StorageEngineFactory
     {
-        internal static async Task<IStorageEngine> Create(string databaseName, Action<CollectionOptions> collectionOverrides = null)
+        internal static Task<IStorageEngine> Create(string databaseName, Action<CollectionOptions> collectionOverrides = null)
         {
-            return await Create(databaseName, new JsonSerializerSettings(), collectionOverrides);
+            return Create(databaseName, new JsonSerializerSettings(), collectionOverrides);
         }
 
-        internal static async Task<IStorageEngine> Create(string databaseName, JsonSerializerSettings settings, Action<CollectionOptions> collectionOverrides = null)
+        internal static Task<IStorageEngine> Create(string databaseName, JsonSerializerSettings settings, Action<CollectionOptions> collectionOverrides = null)
         {
             var config = new ConfigurationBuilder()
                 .AddJsonFile("appsettings.json")
                 .Build();
 
             var consistencyLevel = config["ConsistencyLevel"];
-            ConsistencyLevel consistencyLevelEnum;
 
-            if(!Enum.TryParse(consistencyLevel, true, out consistencyLevelEnum))
+            if(!Enum.TryParse(consistencyLevel, true, out ConsistencyLevel consistencyLevelEnum))
             {
                 throw new Exception($"The ConsistencyLevel value {consistencyLevel} is not supported");
             }
 
             var client = DocumentClientFactory.Create(databaseName, settings);
 
-            return await new AzureDocumentDbStorageEngineBuilder(client, databaseName)
+            return new AzureDocumentDbStorageEngineBuilder(client, databaseName)
                 .UseCollection(o =>
                 {
                     o.ConsistencyLevel = consistencyLevelEnum;
                     o.CollectionRequestUnits = TestConstants.RequestUnits;
-                    if(collectionOverrides != null) collectionOverrides(o);
+                    collectionOverrides?.Invoke(o);
                 })
                 .UseTypeMap(new ConfigurableSerializationTypeMap()
                     .RegisterTypes(
