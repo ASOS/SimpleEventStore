@@ -17,7 +17,7 @@ namespace SimpleEventStore.AzureDocumentDb.Tests
             const string databaseName = "ReadingPartialStreamTests";
             const string collectionName = "Commits";
 
-            var client = DocumentClientFactory.Create(databaseName);
+            var client = DocumentClientFactory.Create();
             var storageEngine = await StorageEngineFactory.Create(databaseName, o => o.CollectionName = collectionName);
             var eventStore = new EventStore(storageEngine);
             var streamId = Guid.NewGuid().ToString();

@@ -22,17 +22,21 @@ namespace SimpleEventStore.AzureDocumentDb
         private readonly LoggingOptions loggingOptions;
         private readonly ISerializationTypeMap typeMap;
         private readonly JsonSerializer jsonSerializer;
+        private readonly DatabaseOptions databaseOptions;
+        private readonly Uri databaseUri;
 
-        internal AzureDocumentDbStorageEngine(DocumentClient client, string databaseName, CollectionOptions collectionOptions, LoggingOptions loggingOptions, ISerializationTypeMap typeMap, JsonSerializer serializer)
+        internal AzureDocumentDbStorageEngine(DocumentClient client, string databaseName, CollectionOptions collectionOptions, DatabaseOptions databaseOptions, LoggingOptions loggingOptions, ISerializationTypeMap typeMap, JsonSerializer serializer)
         {
             this.client = client;
             this.databaseName = databaseName;
+            this.databaseOptions = databaseOptions;
             this.collectionOptions = collectionOptions;
             this.commitsLink = UriFactory.CreateDocumentCollectionUri(databaseName, collectionOptions.CollectionName);
             this.storedProcLink = UriFactory.CreateStoredProcedureUri(databaseName, collectionOptions.CollectionName, AppendStoredProcedureName);
             this.loggingOptions = loggingOptions;
             this.typeMap = typeMap;
             this.jsonSerializer = serializer;
+            this.databaseUri = UriFactory.CreateDatabaseUri(databaseName);
         }
 
         public async Task<IStorageEngine> Initialise()
@@ -41,9 +45,12 @@ namespace SimpleEventStore.AzureDocumentDb
             await CreateCollectionIfItDoesNotExist();
             await CreateAppendStoredProcedureIfItDoesNotExist();
 
+            await SetDatabaseOfferThroughput();
+            await SetCollectionOfferThroughput();
+
             return this;
         }
-
+        
         public async Task AppendToStream(string streamId, IEnumerable<StorageEvent> events)
         {
             var docs = events.Select(d => DocumentDbStorageEvent.FromStorageEvent(d, this.typeMap, this.jsonSerializer)).ToList();
@@ -95,13 +102,16 @@ namespace SimpleEventStore.AzureDocumentDb
 
         private Task CreateDatabaseIfItDoesNotExist()
         {
-            return client.CreateDatabaseIfNotExistsAsync(new Database { Id = databaseName });
+            return client.CreateDatabaseIfNotExistsAsync(
+                new Database { Id = databaseName },
+                new RequestOptions
+                {
+                    OfferThroughput = databaseOptions.DatabaseRequestUnits
+                });
         }
 
         private Task CreateCollectionIfItDoesNotExist()
         {
-            var databaseUri = UriFactory.CreateDatabaseUri(databaseName);
-
             var collection = new DocumentCollection
             {
                 Id = collectionOptions.CollectionName,
@@ -135,6 +145,39 @@ namespace SimpleEventStore.AzureDocumentDb
                     Body = Resources.GetString("appendToStream.js")
                 });
             }
+        }
+        private async Task SetCollectionOfferThroughput()
+        {
+            if (collectionOptions.CollectionRequestUnits != null)
+            {
+                var collection =
+                    (await client.ReadDocumentCollectionAsync(
+                        UriFactory.CreateDocumentCollectionUri(databaseName, collectionOptions.CollectionName)))
+                    .Resource;
+
+                await SetOfferThroughput(collection.SelfLink, (int)collectionOptions.CollectionRequestUnits);
+            }
+        }
+
+        private async Task SetDatabaseOfferThroughput()
+        {
+            if (databaseOptions.DatabaseRequestUnits != null)
+            {
+                var db = (await client.ReadDatabaseAsync(databaseUri)).Resource;
+
+                await SetOfferThroughput(db.SelfLink, (int)databaseOptions.DatabaseRequestUnits);
+            }
+        }
+
+        private Task SetOfferThroughput(string resourceLink, int throughput)
+        {
+            var offer = client
+                .CreateOfferQuery()
+                .Where(x => x.ResourceLink == resourceLink)
+                .AsEnumerable()
+                .FirstOrDefault();
+
+            return client.ReplaceOfferAsync(new OfferV2(offer, throughput));
         }
     }
 }

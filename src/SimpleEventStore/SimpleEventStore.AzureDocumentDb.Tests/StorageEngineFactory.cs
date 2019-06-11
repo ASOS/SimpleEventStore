@@ -10,12 +10,12 @@ namespace SimpleEventStore.AzureDocumentDb.Tests
 {
     internal static class StorageEngineFactory
     {
-        internal static Task<IStorageEngine> Create(string databaseName, Action<CollectionOptions> collectionOverrides = null)
+        internal static Task<IStorageEngine> Create(string databaseName, Action<CollectionOptions> collectionOverrides = null, Action<DatabaseOptions> databaseOverrides = null)
         {
-            return Create(databaseName, new JsonSerializerSettings(), collectionOverrides);
+            return Create(databaseName, new JsonSerializerSettings(), collectionOverrides, databaseOverrides);
         }
 
-        internal static Task<IStorageEngine> Create(string databaseName, JsonSerializerSettings settings, Action<CollectionOptions> collectionOverrides = null)
+        internal static Task<IStorageEngine> Create(string databaseName, JsonSerializerSettings settings, Action<CollectionOptions> collectionOverrides = null, Action<DatabaseOptions> databaseOverrides = null)
         {
             var config = new ConfigurationBuilder()
                 .AddJsonFile("appsettings.json")
@@ -28,9 +28,13 @@ namespace SimpleEventStore.AzureDocumentDb.Tests
                 throw new Exception($"The ConsistencyLevel value {consistencyLevel} is not supported");
             }
 
-            var client = DocumentClientFactory.Create(databaseName, settings);
+            var client = DocumentClientFactory.Create(settings);
 
             return new AzureDocumentDbStorageEngineBuilder(client, databaseName)
+                .UseSharedThroughput(o =>
+                {
+                    databaseOverrides?.Invoke(o); 
+                })
                 .UseCollection(o =>
                 {
                     o.ConsistencyLevel = consistencyLevelEnum;

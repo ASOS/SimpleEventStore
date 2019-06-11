@@ -7,12 +7,12 @@ namespace SimpleEventStore.AzureDocumentDb.Tests
 {
     internal static class DocumentClientFactory
     {
-        internal static DocumentClient Create(string databaseName)
+        internal static DocumentClient Create()
         {
-            return Create(databaseName, new JsonSerializerSettings());
+            return Create(new JsonSerializerSettings());
         }
 
-        internal static DocumentClient Create(string databaseName, JsonSerializerSettings settings)
+        internal static DocumentClient Create(JsonSerializerSettings settings)
         {
             var config = new ConfigurationBuilder()
                 .AddJsonFile("appsettings.json")

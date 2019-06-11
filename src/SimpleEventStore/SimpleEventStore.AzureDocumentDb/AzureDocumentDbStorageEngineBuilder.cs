@@ -9,6 +9,7 @@ namespace SimpleEventStore.AzureDocumentDb
         private readonly string databaseName;
         private readonly DocumentClient client;
         private readonly CollectionOptions collectionOptions = new CollectionOptions();
+        private readonly DatabaseOptions databaseOptions = new DatabaseOptions();
         private readonly LoggingOptions loggingOptions = new LoggingOptions();
         private ISerializationTypeMap typeMap = new DefaultSerializationTypeMap();
         private JsonSerializerSettings jsonSerializerSettings = new JsonSerializerSettings();
@@ -53,9 +54,27 @@ namespace SimpleEventStore.AzureDocumentDb
             return this;
         }
 
+        public AzureDocumentDbStorageEngineBuilder UseSharedThroughput(Action<DatabaseOptions> action)
+        {
+            Guard.IsNotNull(nameof(action), action);
+
+            action(databaseOptions);
+            return this;
+        }
+
         public IStorageEngine Build()
         {
-            var engine = new AzureDocumentDbStorageEngine(this.client, this.databaseName, this.collectionOptions, this.loggingOptions, this.typeMap, JsonSerializer.Create(this.jsonSerializerSettings));
+            if (this.collectionOptions.CollectionRequestUnits == null && this.databaseOptions.DatabaseRequestUnits == null)
+            {
+                throw new ArgumentException("Request units must be set in at least one location");
+            }
+
+            if (this.collectionOptions.CollectionRequestUnits > this.databaseOptions.DatabaseRequestUnits)
+            {
+                throw new ArgumentException("Unable to allocate more RUs to the collection than database");
+            }
+
+            var engine = new AzureDocumentDbStorageEngine(this.client, this.databaseName, this.collectionOptions,this.databaseOptions, this.loggingOptions, this.typeMap, JsonSerializer.Create(this.jsonSerializerSettings));
             return engine;
         }
     }
