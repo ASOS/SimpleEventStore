@@ -1,3 +1,4 @@
+using System;
 using Microsoft.Azure.Documents;
 
 namespace SimpleEventStore.AzureDocumentDb
