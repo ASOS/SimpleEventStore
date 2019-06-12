@@ -31,9 +31,9 @@ namespace SimpleEventStore.AzureDocumentDb.Tests
             Assert.That(stream.First().EventNumber, Is.EqualTo(2));
         }
 
-        private static async Task SimulateTimeToLiveExpiration(string databaseName, string collectionName, DocumentClient client, string streamId)
+        private static Task SimulateTimeToLiveExpiration(string databaseName, string collectionName, DocumentClient client, string streamId)
         {
-            await client.DeleteDocumentAsync(
+            return client.DeleteDocumentAsync(
                 UriFactory.CreateDocumentUri(databaseName, collectionName, $"{streamId}:1"),
                 new RequestOptions() { PartitionKey = new PartitionKey(streamId) });
         }

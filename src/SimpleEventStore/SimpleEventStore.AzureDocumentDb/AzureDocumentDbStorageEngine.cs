@@ -100,7 +100,7 @@ namespace SimpleEventStore.AzureDocumentDb
             return events.AsReadOnly();
         }
 
-        private async Task CreateDatabaseIfItDoesNotExist()
+        private Task CreateDatabaseIfItDoesNotExist()
         {
             return client.CreateDatabaseIfNotExistsAsync(
                 new Database { Id = databaseName },
@@ -110,7 +110,7 @@ namespace SimpleEventStore.AzureDocumentDb
                 });
         }
 
-        private async Task CreateCollectionIfItDoesNotExist()
+        private Task CreateCollectionIfItDoesNotExist()
         {
             var collection = new DocumentCollection
             {
@@ -128,7 +128,7 @@ namespace SimpleEventStore.AzureDocumentDb
                 OfferThroughput = collectionOptions.CollectionRequestUnits
             };
 
-            await client.CreateDocumentCollectionIfNotExistsAsync(databaseUri, collection, requestOptions);
+            return client.CreateDocumentCollectionIfNotExistsAsync(databaseUri, collection, requestOptions);
         }
 
         private async Task CreateAppendStoredProcedureIfItDoesNotExist()
