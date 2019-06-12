@@ -45,7 +45,11 @@ DocumentClient client; // Set this up as required
 
 // If UseCollection isn't specified, sensible defaults for development are used.
 // If UseSubscriptions isn't supplied the subscription feature is disabled.
+// If UseSharedThroughput isn't supplied the throughput is set only at a collection level
 return await new AzureDocumentDbStorageEngineBuilder(client, databaseName)
+	.UseSharedThroughput(o => {
+		o.DatabaseRequestUnits = 400;
+	})
 	.UseCollection(o =>
    	{
 		o.ConsistencyLevel = consistencyLevelEnum;
@@ -64,10 +68,17 @@ return await new AzureDocumentDbStorageEngineBuilder(client, databaseName)
 	.Build()
 	.Initialise();
 ```
+### Database Options
+Use this only if you want throughput to be set at a database level
+
+Allows you to specify
+- The number of RUs for the database
+
+
 ### CollectionOptions
 Allows you to specify
 - The consistency level of the database
-- The default number of RUs when the collection is created
+- The number of RUs for the collection - if throughput is set at a database level this cannot be greater than database throughput
 - The collection name
 
 Only use one of the following consistency levels

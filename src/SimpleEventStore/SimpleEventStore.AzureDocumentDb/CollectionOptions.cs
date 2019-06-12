@@ -16,7 +16,7 @@ namespace SimpleEventStore.AzureDocumentDb
 
         public ConsistencyLevel ConsistencyLevel { get; set; }
 
-        public int CollectionRequestUnits { get; set; }
+        public int? CollectionRequestUnits { get; set; }
 
         public int? DefaultTimeToLive { get; set; }
     }

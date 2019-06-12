@@ -22,17 +22,21 @@ namespace SimpleEventStore.AzureDocumentDb
         private readonly LoggingOptions loggingOptions;
         private readonly ISerializationTypeMap typeMap;
         private readonly JsonSerializer jsonSerializer;
+        private readonly DatabaseOptions databaseOptions;
+        private readonly Uri databaseUri;
 
-        internal AzureDocumentDbStorageEngine(DocumentClient client, string databaseName, CollectionOptions collectionOptions, LoggingOptions loggingOptions, ISerializationTypeMap typeMap, JsonSerializer serializer)
+        internal AzureDocumentDbStorageEngine(DocumentClient client, string databaseName, CollectionOptions collectionOptions, DatabaseOptions databaseOptions, LoggingOptions loggingOptions, ISerializationTypeMap typeMap, JsonSerializer serializer)
         {
             this.client = client;
             this.databaseName = databaseName;
+            this.databaseOptions = databaseOptions;
             this.collectionOptions = collectionOptions;
             this.commitsLink = UriFactory.CreateDocumentCollectionUri(databaseName, collectionOptions.CollectionName);
             this.storedProcLink = UriFactory.CreateStoredProcedureUri(databaseName, collectionOptions.CollectionName, AppendStoredProcedureName);
             this.loggingOptions = loggingOptions;
             this.typeMap = typeMap;
             this.jsonSerializer = serializer;
+            this.databaseUri = UriFactory.CreateDatabaseUri(databaseName);
         }
 
         public async Task<IStorageEngine> Initialise()
@@ -40,6 +44,9 @@ namespace SimpleEventStore.AzureDocumentDb
             await CreateDatabaseIfItDoesNotExist();
             await CreateCollectionIfItDoesNotExist();
             await CreateAppendStoredProcedureIfItDoesNotExist();
+
+            await SetDatabaseOfferThroughput();
+            await SetCollectionOfferThroughput();
 
             return this;
         }
@@ -95,16 +102,22 @@ namespace SimpleEventStore.AzureDocumentDb
 
         private async Task CreateDatabaseIfItDoesNotExist()
         {
-            await client.CreateDatabaseIfNotExistsAsync(new Database { Id = databaseName });
+            return client.CreateDatabaseIfNotExistsAsync(
+                new Database { Id = databaseName },
+                new RequestOptions
+                {
+                    OfferThroughput = databaseOptions.DatabaseRequestUnits
+                });
         }
 
         private async Task CreateCollectionIfItDoesNotExist()
         {
-            var databaseUri = UriFactory.CreateDatabaseUri(databaseName);
+            var collection = new DocumentCollection
+            {
+                Id = collectionOptions.CollectionName,
+                DefaultTimeToLive = collectionOptions.DefaultTimeToLive
+            };
 
-            var collection = new DocumentCollection();
-            collection.Id = collectionOptions.CollectionName;
-            collection.DefaultTimeToLive = collectionOptions.DefaultTimeToLive;
             collection.PartitionKey.Paths.Add("/streamId");
             collection.IndexingPolicy.IncludedPaths.Add(new IncludedPath { Path = "/*" });
             collection.IndexingPolicy.ExcludedPaths.Add(new ExcludedPath { Path = "/body/*" });
@@ -132,6 +145,39 @@ namespace SimpleEventStore.AzureDocumentDb
                     Body = Resources.GetString("appendToStream.js")
                 });
             }
+        }
+        private async Task SetCollectionOfferThroughput()
+        {
+            if (collectionOptions.CollectionRequestUnits != null)
+            {
+                var collection =
+                    (await client.ReadDocumentCollectionAsync(
+                        UriFactory.CreateDocumentCollectionUri(databaseName, collectionOptions.CollectionName)))
+                    .Resource;
+
+                await SetOfferThroughput(collection.SelfLink, (int)collectionOptions.CollectionRequestUnits);
+            }
+        }
+
+        private async Task SetDatabaseOfferThroughput()
+        {
+            if (databaseOptions.DatabaseRequestUnits != null)
+            {
+                var db = (await client.ReadDatabaseAsync(databaseUri)).Resource;
+
+                await SetOfferThroughput(db.SelfLink, (int)databaseOptions.DatabaseRequestUnits);
+            }
+        }
+
+        private Task SetOfferThroughput(string resourceLink, int throughput)
+        {
+            var offer = client
+                .CreateOfferQuery()
+                .Where(x => x.ResourceLink == resourceLink)
+                .AsEnumerable()
+                .FirstOrDefault();
+
+            return client.ReplaceOfferAsync(new OfferV2(offer, throughput));
         }
     }
 }

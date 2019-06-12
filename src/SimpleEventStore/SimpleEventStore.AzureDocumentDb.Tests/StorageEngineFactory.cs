@@ -10,12 +10,12 @@ namespace SimpleEventStore.AzureDocumentDb.Tests
 {
     internal static class StorageEngineFactory
     {
-        internal static async Task<IStorageEngine> Create(string databaseName, Action<CollectionOptions> collectionOverrides = null)
+        internal static Task<IStorageEngine> Create(string databaseName, Action<CollectionOptions> collectionOverrides = null, Action<DatabaseOptions> databaseOverrides = null)
         {
-            return await Create(databaseName, new JsonSerializerSettings(), collectionOverrides);
+            return Create(databaseName, new JsonSerializerSettings(), collectionOverrides, databaseOverrides);
         }
 
-        internal static async Task<IStorageEngine> Create(string databaseName, JsonSerializerSettings settings, Action<CollectionOptions> collectionOverrides = null)
+        internal static Task<IStorageEngine> Create(string databaseName, JsonSerializerSettings settings, Action<CollectionOptions> collectionOverrides = null, Action<DatabaseOptions> databaseOverrides = null)
         {
             var config = new ConfigurationBuilder()
                 .AddJsonFile("appsettings.json")
@@ -24,19 +24,23 @@ namespace SimpleEventStore.AzureDocumentDb.Tests
             var consistencyLevel = config["ConsistencyLevel"];
             ConsistencyLevel consistencyLevelEnum;
 
-            if(!Enum.TryParse(consistencyLevel, true, out consistencyLevelEnum))
+            if (!Enum.TryParse(consistencyLevel, true, out consistencyLevelEnum))
             {
                 throw new Exception($"The ConsistencyLevel value {consistencyLevel} is not supported");
             }
 
-            var client = DocumentClientFactory.Create(databaseName, settings);
+            var client = DocumentClientFactory.Create(settings);
 
-            return await new AzureDocumentDbStorageEngineBuilder(client, databaseName)
+            return new AzureDocumentDbStorageEngineBuilder(client, databaseName)
+                .UseSharedThroughput(o =>
+                {
+                    databaseOverrides?.Invoke(o);
+                })
                 .UseCollection(o =>
                 {
                     o.ConsistencyLevel = consistencyLevelEnum;
                     o.CollectionRequestUnits = TestConstants.RequestUnits;
-                    if(collectionOverrides != null) collectionOverrides(o);
+                    if (collectionOverrides != null) collectionOverrides(o);
                 })
                 .UseTypeMap(new ConfigurableSerializationTypeMap()
                     .RegisterTypes(
