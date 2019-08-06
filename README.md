@@ -35,7 +35,7 @@ The expected stream revision would either be set to 0 for a new stream, or to th
 ```csharp
 var events = await eventStore.ReadStreamForwards(streamId, startPosition: 2, numberOfEventsToRead: 1);
 // or
-var events = await subject.ReadStreamForwards(streamId);
+var events = await eventStore.ReadStreamForwards(streamId);
 ```
 You can either read all events in a stream, or a subset of events.  Only read all events if you know the maximum size of a stream is going to be low and that you always need to read all events as part of your workload e.g. replaying events to project current state for a DDD aggregate.
 
