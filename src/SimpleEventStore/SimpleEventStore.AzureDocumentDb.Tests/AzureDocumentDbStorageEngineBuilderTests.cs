@@ -54,26 +54,6 @@ namespace SimpleEventStore.AzureDocumentDb.Tests
             Assert.Throws<ArgumentNullException>(() => builder.UseJsonSerializerSettings(null));
         }
 
-        [Test]
-        public void throughput_must_be_set_in_one_location()
-        {
-            var builder = new AzureDocumentDbStorageEngineBuilder(CreateClient(), "Test")
-                .UseSharedThroughput(o => { o.DatabaseRequestUnits = null; })
-                .UseCollection(o => o.CollectionRequestUnits = null);
-
-            Assert.Throws<ArgumentException>(() => builder.Build());
-        }
-
-        [Test]
-        public void collection_throughput_cannot_be_greater_than_database_throughput()
-        {
-            var builder = new AzureDocumentDbStorageEngineBuilder(CreateClient(), "Test")
-                .UseSharedThroughput(o => { o.DatabaseRequestUnits = 400; })
-                .UseCollection(o => o.CollectionRequestUnits = 500);
-
-            Assert.Throws<ArgumentException>(() => builder.Build());
-        }
-
         private static DocumentClient CreateClient()
         {
             var client = new DocumentClient(new Uri("https://localhost:8081/"), "C2y6yDjf5/R+ob0N8A7Cgv30VRDJIWEHLM+4QDU5DE2nQ9nDuVTqobD4b8mGGyPMbIZnqyMsEcaGQy67XIw/Jw==");

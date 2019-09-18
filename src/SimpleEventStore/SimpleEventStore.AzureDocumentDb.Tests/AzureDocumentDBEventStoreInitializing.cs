@@ -72,7 +72,7 @@ namespace SimpleEventStore.AzureDocumentDb.Tests
         [Test]
         public async Task when_using_shared_throughput_it_is_set_at_a_database_level()
         {
-            const int throughput = 800;
+            const int dbThroughput = 800;
             var collectionName = "SharedCollection_" + Guid.NewGuid();
 
             var storageEngine = await StorageEngineFactory.Create(DatabaseName,
@@ -81,12 +81,14 @@ namespace SimpleEventStore.AzureDocumentDb.Tests
                     collectionOptions.CollectionName = collectionName;
                     collectionOptions.CollectionRequestUnits = null;
                 },
-                databaseOptions => { databaseOptions.DatabaseRequestUnits = throughput; });
+                databaseOptions => { databaseOptions.DatabaseRequestUnits = dbThroughput; });
 
             await storageEngine.Initialise();
 
-            Assert.AreEqual(throughput, await GetDatabaseThroughput());
+            Assert.AreEqual(dbThroughput, await GetDatabaseThroughput());
+            Assert.AreEqual(null, await GetCollectionThroughput(collectionName));
         }
+
 
         [Test]
         public async Task when_throughput_is_set_offer_is_updated()
@@ -109,6 +111,55 @@ namespace SimpleEventStore.AzureDocumentDb.Tests
             Assert.AreEqual(collectionThroughput, await GetCollectionThroughput(collectionName));
         }
 
+        [TestCase(null, null, null, 400)]
+        [TestCase(600, null, 600, null)]
+        [TestCase(null, 600, null, 600)]
+        [TestCase(600, 600, 600, 600)]
+        [TestCase(600, 1000, 600, 1000)]
+        [TestCase(1000, 600, 1000, 600)]
+        public async Task set_database_and_collection_throughput_when_database_has_not_been_created(int? dbThroughput, int? collectionThroughput, int? expectedDbThroughput, int? expectedCollectionThroughput)
+        {
+            var collectionName = "CollectionThroughput_" + Guid.NewGuid();
+
+            var storageEngine = await StorageEngineFactory.Create(DatabaseName,
+                collectionOptions =>
+                {
+                    collectionOptions.CollectionName = collectionName;
+                    collectionOptions.CollectionRequestUnits = collectionThroughput;
+                },
+                databaseOptions =>
+                {
+                    databaseOptions.DatabaseRequestUnits = dbThroughput;
+                });
+
+            await storageEngine.Initialise();
+
+            Assert.AreEqual(expectedDbThroughput, await GetDatabaseThroughput());
+            Assert.AreEqual(expectedCollectionThroughput, await GetCollectionThroughput(collectionName));
+        }
+
+
+        [TestCase(null, 500, null)]
+        [TestCase(1000, 500, 1000)]
+        public async Task set_database_and_collection_throughput_when_database_has_already_been_created(int? collectionThroughput, int? expectedDbThroughput, int? expectedCollectionThroughput)
+        {
+            const int existingDbThroughput = 500;
+            await CreateDatabase(existingDbThroughput);
+            var collectionName = "CollectionThroughput_" + Guid.NewGuid();
+
+            var storageEngine = await StorageEngineFactory.Create(DatabaseName,
+                collectionOptions =>
+                {
+                    collectionOptions.CollectionName = collectionName;
+                    collectionOptions.CollectionRequestUnits = collectionThroughput;
+                });
+
+            await storageEngine.Initialise();
+
+            Assert.AreEqual(expectedDbThroughput, await GetDatabaseThroughput());
+            Assert.AreEqual(expectedCollectionThroughput, await GetCollectionThroughput(collectionName));
+        }
+
         private static async Task InitialiseStorageEngine(string collectionName, int collectionThroughput,
             int dbThroughput)
         {
@@ -123,23 +174,33 @@ namespace SimpleEventStore.AzureDocumentDb.Tests
             await storageEngine.Initialise();
         }
 
-        public async Task<int> GetCollectionThroughput(string collectionName)
+        public async Task<int?> GetCollectionThroughput(string collectionName)
         {
             var collection = await client.ReadDocumentCollectionAsync(UriFactory.CreateDocumentCollectionUri(DatabaseName, collectionName));
 
             var collectionOffer = client.CreateOfferQuery().Where(x => x.ResourceLink == collection.Resource.SelfLink)
-                .AsEnumerable().First();
+                .AsEnumerable().FirstOrDefault();
 
-            return ((OfferV2)collectionOffer).Content.OfferThroughput;
+            return ((OfferV2) collectionOffer)?.Content.OfferThroughput;
         }
 
-        public async Task<int> GetDatabaseThroughput()
+        public async Task<int?> GetDatabaseThroughput()
         {
             var db = await client.ReadDatabaseAsync(databaseUri);
             var dbOffer = client.CreateOfferQuery().Where(x => x.ResourceLink == db.Resource.SelfLink).AsEnumerable()
-                .First();
+                .FirstOrDefault();
 
-            return ((OfferV2)dbOffer).Content.OfferThroughput;
+            return ((OfferV2)dbOffer)?.Content.OfferThroughput;
+        }
+
+        private Task CreateDatabase(int databaseRequestUnits)
+        {
+            return client.CreateDatabaseIfNotExistsAsync(
+                new Database { Id = DatabaseName },
+                new RequestOptions
+                {
+                    OfferThroughput = databaseRequestUnits
+                });
         }
     }
 }

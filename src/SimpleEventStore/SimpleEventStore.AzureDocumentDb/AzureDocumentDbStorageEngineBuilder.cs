@@ -64,16 +64,6 @@ namespace SimpleEventStore.AzureDocumentDb
 
         public IStorageEngine Build()
         {
-            if (this.collectionOptions.CollectionRequestUnits == null && this.databaseOptions.DatabaseRequestUnits == null)
-            {
-                throw new ArgumentException("Request units must be set in at least one location");
-            }
-
-            if (this.collectionOptions.CollectionRequestUnits > this.databaseOptions.DatabaseRequestUnits)
-            {
-                throw new ArgumentException("Unable to allocate more RUs to the collection than database");
-            }
-
             var engine = new AzureDocumentDbStorageEngine(this.client, this.databaseName, this.collectionOptions,this.databaseOptions, this.loggingOptions, this.typeMap, JsonSerializer.Create(this.jsonSerializerSettings));
             return engine;
         }
