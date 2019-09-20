@@ -54,7 +54,7 @@ namespace SimpleEventStore.AzureDocumentDb
             return this;
         }
 
-        public AzureDocumentDbStorageEngineBuilder UseSharedThroughput(Action<DatabaseOptions> action)
+        public AzureDocumentDbStorageEngineBuilder UseDatabase(Action<DatabaseOptions> action)
         {
             Guard.IsNotNull(nameof(action), action);
 

@@ -32,7 +32,7 @@ namespace SimpleEventStore.AzureDocumentDb.Tests
             var client = DocumentClientFactory.Create(settings);
 
             return new AzureDocumentDbStorageEngineBuilder(client, databaseName)
-                .UseSharedThroughput(o =>
+                .UseDatabase(o =>
                 {
                     databaseOverrides?.Invoke(o);
                 })

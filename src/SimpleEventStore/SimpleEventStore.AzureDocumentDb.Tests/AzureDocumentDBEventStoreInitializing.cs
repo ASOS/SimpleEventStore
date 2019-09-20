@@ -81,7 +81,10 @@ namespace SimpleEventStore.AzureDocumentDb.Tests
                     collectionOptions.CollectionName = collectionName;
                     collectionOptions.CollectionRequestUnits = null;
                 },
-                databaseOptions => { databaseOptions.DatabaseRequestUnits = dbThroughput; });
+                databaseOptions =>
+                {
+                    databaseOptions.DatabaseRequestUnits = dbThroughput;
+                });
 
             await storageEngine.Initialise();
 
