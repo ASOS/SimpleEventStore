@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Azure.Documents;
 using Microsoft.Azure.Documents.Client;
@@ -39,19 +40,28 @@ namespace SimpleEventStore.AzureDocumentDb
             this.databaseUri = UriFactory.CreateDatabaseUri(databaseName);
         }
 
-        public async Task<IStorageEngine> Initialise()
+        public async Task<IStorageEngine> Initialise(CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             await CreateDatabaseIfItDoesNotExist();
+
+            cancellationToken.ThrowIfCancellationRequested();
             await CreateCollectionIfItDoesNotExist();
+            
+            cancellationToken.ThrowIfCancellationRequested();
             await CreateAppendStoredProcedureIfItDoesNotExist();
 
+
+            cancellationToken.ThrowIfCancellationRequested();
             await SetDatabaseOfferThroughput();
+            
+            cancellationToken.ThrowIfCancellationRequested();
             await SetCollectionOfferThroughput();
 
             return this;
         }
 
-        public async Task AppendToStream(string streamId, IEnumerable<StorageEvent> events)
+        public async Task AppendToStream(string streamId, IEnumerable<StorageEvent> events, CancellationToken cancellationToken = default)
         {
             var docs = events.Select(d => DocumentDbStorageEvent.FromStorageEvent(d, this.typeMap, this.jsonSerializer)).ToList();
 
@@ -60,6 +70,7 @@ namespace SimpleEventStore.AzureDocumentDb
                 var result = await this.client.ExecuteStoredProcedureAsync<dynamic>(
                     storedProcLink,
                     new RequestOptions { PartitionKey = new PartitionKey(streamId), ConsistencyLevel = this.collectionOptions.ConsistencyLevel },
+                    cancellationToken,
                     docs);
 
                 loggingOptions.OnSuccess(ResponseInformation.FromWriteResponse(nameof(AppendToStream), result));
@@ -75,7 +86,7 @@ namespace SimpleEventStore.AzureDocumentDb
             }
         }
 
-        public async Task<IReadOnlyCollection<StorageEvent>> ReadStreamForwards(string streamId, int startPosition, int numberOfEventsToRead)
+        public async Task<IReadOnlyCollection<StorageEvent>> ReadStreamForwards(string streamId, int startPosition, int numberOfEventsToRead, CancellationToken cancellationToken = default)
         {
             int endPosition = numberOfEventsToRead == int.MaxValue ? int.MaxValue : startPosition + numberOfEventsToRead;
 
@@ -88,7 +99,7 @@ namespace SimpleEventStore.AzureDocumentDb
 
             while (eventsQuery.HasMoreResults)
             {
-                var response = await eventsQuery.ExecuteNextAsync<DocumentDbStorageEvent>();
+                var response = await eventsQuery.ExecuteNextAsync<DocumentDbStorageEvent>(cancellationToken);
                 loggingOptions.OnSuccess(ResponseInformation.FromReadResponse(nameof(ReadStreamForwards), response));
 
                 foreach (var e in response)

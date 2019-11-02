@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace SimpleEventStore.InMemory
@@ -12,7 +13,7 @@ namespace SimpleEventStore.InMemory
         private readonly ConcurrentDictionary<string, List<StorageEvent>> streams = new ConcurrentDictionary<string, List<StorageEvent>>();
         private readonly List<StorageEvent> allEvents = new List<StorageEvent>();
 
-        public Task AppendToStream(string streamId, IEnumerable<StorageEvent> events)
+        public Task AppendToStream(string streamId, IEnumerable<StorageEvent> events, CancellationToken cancellationToken = default)
         {
             return Task.Run(() =>
             {
@@ -41,7 +42,7 @@ namespace SimpleEventStore.InMemory
             }
         }
 
-        public Task<IReadOnlyCollection<StorageEvent>> ReadStreamForwards(string streamId, int startPosition, int numberOfEventsToRead)
+        public Task<IReadOnlyCollection<StorageEvent>> ReadStreamForwards(string streamId, int startPosition, int numberOfEventsToRead, CancellationToken cancellationToken = default)
         {
             if (!streams.ContainsKey(streamId))
             {
@@ -52,7 +53,7 @@ namespace SimpleEventStore.InMemory
             return Task.FromResult(stream);
         }
 
-        public Task<IStorageEngine> Initialise()
+        public Task<IStorageEngine> Initialise(CancellationToken cancellationToken = default)
         {
             return Task.FromResult<IStorageEngine>(this);
         }
