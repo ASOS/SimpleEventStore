@@ -64,14 +64,9 @@ namespace SimpleEventStore.AzureDocumentDb
 
                 loggingOptions.OnSuccess(ResponseInformation.FromWriteResponse(nameof(AppendToStream), result));
             }
-            catch (DocumentClientException ex)
+            catch (DocumentClientException ex) when (ex.Error.Message.Contains(ConcurrencyConflictErrorKey))
             {
-                if (ex.Error.Message.Contains(ConcurrencyConflictErrorKey))
-                {
-                    throw new ConcurrencyException(ex.Error.Message, ex);
-                }
-
-                throw;
+                throw new ConcurrencyException(ex.Error.Message, ex);
             }
         }
 
