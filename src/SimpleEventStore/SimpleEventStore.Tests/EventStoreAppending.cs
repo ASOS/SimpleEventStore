@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using SimpleEventStore.Tests.Events;
@@ -111,6 +112,24 @@ namespace SimpleEventStore.Tests
 
             var stream = await subject.ReadStreamForwards(streamId);
             Assert.That(((TestMetadata)stream.Single().Metadata).Value, Is.EqualTo(metadata.Value));
+        }
+
+        [Test]
+        public async Task when_appending_to_a_stream_the_engine_honours_cancellation_token()
+        {
+            var streamId = Guid.NewGuid().ToString();
+            var subject = await GetEventStore();
+            var metadata = new TestMetadata { Value = "Hello" };
+            var @event = new EventData(Guid.NewGuid(), new OrderCreated(streamId), metadata);
+
+            using (var cts = new CancellationTokenSource())
+            {
+                cts.Cancel();
+
+                AsyncTestDelegate act = () => subject.AppendToStream(streamId, 0, cts.Token, @event);
+
+                Assert.That(act, Throws.InstanceOf<OperationCanceledException>());
+            }
         }
     }
 }

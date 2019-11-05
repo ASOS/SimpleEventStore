@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace SimpleEventStore
@@ -15,6 +16,11 @@ namespace SimpleEventStore
 
         public Task AppendToStream(string streamId, int expectedVersion, params EventData[] events)
         {
+            return AppendToStream(streamId, expectedVersion, default, events);
+        }
+
+        public Task AppendToStream(string streamId, int expectedVersion, CancellationToken cancellationToken, params EventData[] events)
+        {
             Guard.IsNotNullOrEmpty(nameof(streamId), streamId);
 
             var storageEvents = new List<StorageEvent>();
@@ -25,21 +31,21 @@ namespace SimpleEventStore
                 storageEvents.Add(new StorageEvent(streamId, events[i], ++eventVersion));
             }
 
-            return engine.AppendToStream(streamId, storageEvents);
+            return engine.AppendToStream(streamId, storageEvents, cancellationToken);
         }
 
-        public Task<IReadOnlyCollection<StorageEvent>> ReadStreamForwards(string streamId)
+        public Task<IReadOnlyCollection<StorageEvent>> ReadStreamForwards(string streamId, CancellationToken cancellationToken = default)
         {
             Guard.IsNotNullOrEmpty(nameof(streamId), streamId);
 
-            return engine.ReadStreamForwards(streamId, 1, Int32.MaxValue);
+            return engine.ReadStreamForwards(streamId, 1, Int32.MaxValue, cancellationToken);
         }
 
-        public Task<IReadOnlyCollection<StorageEvent>> ReadStreamForwards(string streamId, int startPosition, int numberOfEventsToRead)
+        public Task<IReadOnlyCollection<StorageEvent>> ReadStreamForwards(string streamId, int startPosition, int numberOfEventsToRead, CancellationToken cancellationToken = default)
         {
             Guard.IsNotNullOrEmpty(nameof(streamId), streamId);
 
-            return engine.ReadStreamForwards(streamId, startPosition, numberOfEventsToRead);
+            return engine.ReadStreamForwards(streamId, startPosition, numberOfEventsToRead, cancellationToken);
         }
     }
 }

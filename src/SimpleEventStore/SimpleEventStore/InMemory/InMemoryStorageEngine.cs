@@ -29,6 +29,8 @@ namespace SimpleEventStore.InMemory
                     throw new ConcurrencyException($"Concurrency conflict when appending to stream {streamId}. Expected revision {firstEvent.EventNumber} : Actual revision {streams[streamId].Count}");
                 }
 
+                cancellationToken.ThrowIfCancellationRequested();
+
                 streams[streamId].AddRange(events);
                 AddEventsToAllStream(events);
             });
@@ -44,6 +46,8 @@ namespace SimpleEventStore.InMemory
 
         public Task<IReadOnlyCollection<StorageEvent>> ReadStreamForwards(string streamId, int startPosition, int numberOfEventsToRead, CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             if (!streams.ContainsKey(streamId))
             {
                 return Task.FromResult(EmptyStream);
@@ -55,6 +59,8 @@ namespace SimpleEventStore.InMemory
 
         public Task<IStorageEngine> Initialise(CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             return Task.FromResult<IStorageEngine>(this);
         }
     }

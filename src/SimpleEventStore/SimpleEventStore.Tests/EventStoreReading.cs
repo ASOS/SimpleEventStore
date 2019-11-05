@@ -1,8 +1,9 @@
-﻿using System;
-using System.Linq;
-using System.Threading.Tasks;
-using NUnit.Framework;
+﻿using NUnit.Framework;
 using SimpleEventStore.Tests.Events;
+using System;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace SimpleEventStore.Tests
 {
@@ -62,6 +63,22 @@ namespace SimpleEventStore.Tests
 
             Assert.That(events.Count, Is.EqualTo(1));
             Assert.That(events.First().EventBody, Is.InstanceOf<OrderDispatched>());
+        }
+
+        [Test]
+        public async Task when_reading_a_stream_the_engine_honours_cancellation_token()
+        {
+            var streamId = Guid.NewGuid().ToString();
+            var subject = await GetEventStore();
+
+            using (var cts = new CancellationTokenSource())
+            {
+                cts.Cancel();
+
+                AsyncTestDelegate act = () => subject.ReadStreamForwards(streamId, cts.Token);
+
+                Assert.That(act, Throws.InstanceOf<OperationCanceledException>());
+            }
         }
     }
 }
