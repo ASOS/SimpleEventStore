@@ -9,16 +9,16 @@ trigger:
 pool:
   vmImage: 'ubuntu-latest'
 
-- task: CosmosDbEmulator@2
-  inputs:
-    containerName: 'azure-cosmosdb-emulator'
-    enableAPI: 'SQL'
-    portMapping: '8081:8081, 8901:8901, 8902:8902, 8979:8979, 10250:10250, 10251:10251, 10252:10252, 10253:10253, 10254:10254, 10255:10255, 10256:10256, 10350:10350'
-    hostDirectory: '$(Build.BinariesDirectory)\azure-cosmosdb-emulator'
-
-- task: PowerShell@2
-  inputs:
-    filePath: '.\build.ps1'
+steps:
+  - task: CosmosDbEmulator@2
+    inputs:
+      containerName: 'azure-cosmosdb-emulator'
+      enableAPI: 'SQL'
+      portMapping: '8081:8081, 8901:8901, 8902:8902, 8979:8979, 10250:10250, 10251:10251, 10252:10252, 10253:10253, 10254:10254, 10255:10255, 10256:10256, 10350:10350'
+      hostDirectory: '$(Build.BinariesDirectory)\azure-cosmosdb-emulator'
+  - task: PowerShell@2
+    inputs:
+      filePath: '.\build.ps1'
 
 
 
