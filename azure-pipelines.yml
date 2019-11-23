@@ -7,7 +7,7 @@ trigger:
 - v-next
 
 pool:
-  vmImage: 'ubuntu-latest'
+  vmImage: 'windows-latest'
 
 steps:
   - task: CosmosDbEmulator@2
