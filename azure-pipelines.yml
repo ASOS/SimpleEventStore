@@ -19,4 +19,4 @@ steps:
   - task: PowerShell@2
     inputs:
       filePath: 'build.ps1'
-      workingDirectory: '$(Build.SourcesDirectory)\build'
+      workingDirectory: '$(Build.SourcesDirectory)\build\'
