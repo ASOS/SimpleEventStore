@@ -39,15 +39,23 @@ namespace SimpleEventStore.AzureDocumentDb.Tests
                 .OfType<OfferV2>()
                 .Single();
 
+            var includedPaths = collection.IndexingPolicy.IncludedPaths.Select(x => x.Path);
+            var excludedPaths = collection.IndexingPolicy.ExcludedPaths.Select(x => x.Path);
+
             Assert.That(offer.Content.OfferThroughput, Is.EqualTo(TestConstants.RequestUnits));
             Assert.That(collection.DefaultTimeToLive, Is.Null);
-            Assert.That(collection.PartitionKey.Paths.Count, Is.EqualTo(1));
-            Assert.That(collection.PartitionKey.Paths.Single(), Is.EqualTo("/streamId"));
-            Assert.That(collection.IndexingPolicy.IncludedPaths.Count, Is.EqualTo(1));
-            Assert.That(collection.IndexingPolicy.IncludedPaths[0].Path, Is.EqualTo("/*"));
-            Assert.That(collection.IndexingPolicy.ExcludedPaths.Count, Is.EqualTo(3));
-            Assert.That(collection.IndexingPolicy.ExcludedPaths[0].Path, Is.EqualTo("/body/*"));
-            Assert.That(collection.IndexingPolicy.ExcludedPaths[1].Path, Is.EqualTo("/metadata/*"));
+            Assert.That(collection.PartitionKey.Paths, Is.EquivalentTo(new[] { "/streamId" }));
+            Assert.That(includedPaths, Is.EquivalentTo(new[] { "/*"}));
+            Assert.That(excludedPaths, Is.EquivalentTo(new[] { "/body/*", "/metadata/*", "/\"_etag\"/?" }));
+            Assert.That(offer.Content.OfferThroughput, Is.EqualTo(TestConstants.RequestUnits));
+
+
+            Assert.That(collection.IndexingPolicy.CompositeIndexes, Has.Count.EqualTo(1));
+            var compositeIndex = collection.IndexingPolicy.CompositeIndexes[0];
+            Assert.That(compositeIndex[0].Path, Is.EqualTo("/streamId"));
+            Assert.That(compositeIndex[0].Order, Is.EqualTo(CompositePathSortOrder.Ascending));
+            Assert.That(compositeIndex[1].Path, Is.EqualTo("/eventNumber"));
+            Assert.That(compositeIndex[1].Order, Is.EqualTo(CompositePathSortOrder.Ascending));
         }
 
         [Test]
