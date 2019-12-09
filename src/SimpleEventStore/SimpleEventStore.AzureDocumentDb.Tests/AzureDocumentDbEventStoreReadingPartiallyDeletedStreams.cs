@@ -14,15 +14,14 @@ namespace SimpleEventStore.AzureDocumentDb.Tests
         [Test]
         public async Task when_reading_a_stream_that_has_deleted_events_the_stream_can_still_be_read()
         {
-            const string databaseName = "ReadingPartialStreamTests";
-            const string collectionName = "Commits";
+            const string collectionName = "ReadingPartialStreamTests";
 
             var client = DocumentClientFactory.Create();
-            var storageEngine = await StorageEngineFactory.Create(databaseName, o => o.CollectionName = collectionName);
+            var storageEngine = await StorageEngineFactory.Create(collectionName);
             var eventStore = new EventStore(storageEngine);
             var streamId = Guid.NewGuid().ToString();
             await eventStore.AppendToStream(streamId, 0, new EventData(Guid.NewGuid(), new OrderCreated(streamId)), new EventData(Guid.NewGuid(), new OrderDispatched(streamId)));
-            await SimulateTimeToLiveExpiration(databaseName, collectionName, client, streamId);
+            await SimulateTimeToLiveExpiration(StorageEngineFactory.DefaultDatabaseName, collectionName, client, streamId);
 
             var stream = await eventStore.ReadStreamForwards(streamId);
 

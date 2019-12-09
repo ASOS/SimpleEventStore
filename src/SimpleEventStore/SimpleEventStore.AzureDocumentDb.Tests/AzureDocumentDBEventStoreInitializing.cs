@@ -12,7 +12,7 @@ namespace SimpleEventStore.AzureDocumentDb.Tests
     [TestFixture]
     public class AzureDocumentDBEventStoreInitializing
     {
-        private const string DatabaseName = "InitializeTests";
+        private const string DatabaseName = "EventStoreTests-Initialize";
         private readonly Uri databaseUri = UriFactory.CreateDatabaseUri(DatabaseName);
         private readonly DocumentClient client = DocumentClientFactory.Create();
 
@@ -26,9 +26,7 @@ namespace SimpleEventStore.AzureDocumentDb.Tests
         public async Task when_initializing_all_expected_resources_are_created()
         {
             var collectionName = "AllExpectedResourcesAreCreated_" + Guid.NewGuid();
-            var storageEngine = await StorageEngineFactory.Create(DatabaseName, o => o.CollectionName = collectionName);
-
-            await storageEngine.Initialise();
+            var storageEngine = await InitialiseStorageEngine(collectionName, collectionThroughput: TestConstants.RequestUnits);
 
             var database = (await client.ReadDatabaseAsync(databaseUri)).Resource;
             var collection = (await client.ReadDocumentCollectionAsync(UriFactory.CreateDocumentCollectionUri(DatabaseName, collectionName))).Resource;
@@ -55,13 +53,10 @@ namespace SimpleEventStore.AzureDocumentDb.Tests
         {
             var ttl = 60;
             var collectionName = "TimeToLiveIsSet_" + Guid.NewGuid();
-            var storageEngine = await StorageEngineFactory.Create(DatabaseName, o =>
+            var storageEngine = await StorageEngineFactory.Create(collectionName, DatabaseName, x =>
             {
-                o.CollectionName = collectionName;
-                o.DefaultTimeToLive = ttl;
+                x.UseCollection(o => o.DefaultTimeToLive = ttl);
             });
-
-            await storageEngine.Initialise();
 
             var collection =
                 (await client.ReadDocumentCollectionAsync(
@@ -75,18 +70,7 @@ namespace SimpleEventStore.AzureDocumentDb.Tests
             const int dbThroughput = 800;
             var collectionName = "SharedCollection_" + Guid.NewGuid();
 
-            var storageEngine = await StorageEngineFactory.Create(DatabaseName,
-                collectionOptions =>
-                {
-                    collectionOptions.CollectionName = collectionName;
-                    collectionOptions.CollectionRequestUnits = null;
-                },
-                databaseOptions =>
-                {
-                    databaseOptions.DatabaseRequestUnits = dbThroughput;
-                });
-
-            await storageEngine.Initialise();
+            var storageEngine = await InitialiseStorageEngine(collectionName, dbThroughput: dbThroughput);
 
             Assert.AreEqual(dbThroughput, await GetDatabaseThroughput());
             Assert.AreEqual(null, await GetCollectionThroughput(collectionName));
@@ -124,18 +108,8 @@ namespace SimpleEventStore.AzureDocumentDb.Tests
         {
             var collectionName = "CollectionThroughput_" + Guid.NewGuid();
 
-            var storageEngine = await StorageEngineFactory.Create(DatabaseName,
-                collectionOptions =>
-                {
-                    collectionOptions.CollectionName = collectionName;
-                    collectionOptions.CollectionRequestUnits = collectionThroughput;
-                },
-                databaseOptions =>
-                {
-                    databaseOptions.DatabaseRequestUnits = dbThroughput;
-                });
 
-            await storageEngine.Initialise();
+            var storageEngine = await InitialiseStorageEngine(collectionName, collectionThroughput, dbThroughput);
 
             Assert.AreEqual(expectedDbThroughput, await GetDatabaseThroughput());
             Assert.AreEqual(expectedCollectionThroughput, await GetCollectionThroughput(collectionName));
@@ -150,31 +124,21 @@ namespace SimpleEventStore.AzureDocumentDb.Tests
             await CreateDatabase(existingDbThroughput);
             var collectionName = "CollectionThroughput_" + Guid.NewGuid();
 
-            var storageEngine = await StorageEngineFactory.Create(DatabaseName,
-                collectionOptions =>
-                {
-                    collectionOptions.CollectionName = collectionName;
-                    collectionOptions.CollectionRequestUnits = collectionThroughput;
-                });
-
-            await storageEngine.Initialise();
+            var storageEngine = await InitialiseStorageEngine(collectionName, collectionThroughput, null);
 
             Assert.AreEqual(expectedDbThroughput, await GetDatabaseThroughput());
             Assert.AreEqual(expectedCollectionThroughput, await GetCollectionThroughput(collectionName));
         }
 
-        private static async Task InitialiseStorageEngine(string collectionName, int collectionThroughput,
-            int dbThroughput)
+        private static async Task<IStorageEngine> InitialiseStorageEngine(string collectionName, int? collectionThroughput = null,
+            int? dbThroughput = null)
         {
-            var storageEngine = await StorageEngineFactory.Create(DatabaseName,
-                collectionOptions =>
-                {
-                    collectionOptions.CollectionName = collectionName;
-                    collectionOptions.CollectionRequestUnits = collectionThroughput;
-                },
-                databaseOptions => { databaseOptions.DatabaseRequestUnits = dbThroughput; });
+            var storageEngine = await StorageEngineFactory.Create(collectionName, DatabaseName, x => {
+                x.UseCollection(o => o.CollectionRequestUnits = collectionThroughput);
+                x.UseDatabase(o => o.DatabaseRequestUnits = dbThroughput);
+            });
 
-            await storageEngine.Initialise();
+            return await storageEngine.Initialise();
         }
 
         public async Task<int?> GetCollectionThroughput(string collectionName)
@@ -205,5 +169,6 @@ namespace SimpleEventStore.AzureDocumentDb.Tests
                     OfferThroughput = databaseRequestUnits
                 });
         }
+
     }
 }

@@ -32,7 +32,7 @@ namespace SimpleEventStore.AzureDocumentDb.Tests
         protected override Task<IStorageEngine> CreateStorageEngine()
         {
             return StorageEngineFactory.Create("JsonSerializationSettingsTests",
-                new JsonSerializerSettings
+                settings: new JsonSerializerSettings
                 {
                     Converters = new List<JsonConverter>
                     {
