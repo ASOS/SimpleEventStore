@@ -12,19 +12,16 @@ namespace SimpleEventStore.AzureDocumentDb
 {
     internal class AzureDocumentDbStorageEngine : IStorageEngine
     {
-        private const string AppendStoredProcedureName = "appendToStream";
-        private const string ConcurrencyConflictErrorKey = "Concurrency conflict.";
-
         private readonly DocumentClient client;
         private readonly string databaseName;
         private readonly CollectionOptions collectionOptions;
         private readonly Uri commitsLink;
-        private readonly Uri storedProcLink;
         private readonly LoggingOptions loggingOptions;
         private readonly ISerializationTypeMap typeMap;
         private readonly JsonSerializer jsonSerializer;
         private readonly DatabaseOptions databaseOptions;
         private readonly Uri databaseUri;
+        private Uri storedProcLink;
 
         internal AzureDocumentDbStorageEngine(DocumentClient client, string databaseName, CollectionOptions collectionOptions, DatabaseOptions databaseOptions, LoggingOptions loggingOptions, ISerializationTypeMap typeMap, JsonSerializer serializer)
         {
@@ -33,7 +30,6 @@ namespace SimpleEventStore.AzureDocumentDb
             this.databaseOptions = databaseOptions;
             this.collectionOptions = collectionOptions;
             this.commitsLink = UriFactory.CreateDocumentCollectionUri(databaseName, collectionOptions.CollectionName);
-            this.storedProcLink = UriFactory.CreateStoredProcedureUri(databaseName, collectionOptions.CollectionName, AppendStoredProcedureName);
             this.loggingOptions = loggingOptions;
             this.typeMap = typeMap;
             this.jsonSerializer = serializer;
@@ -49,14 +45,11 @@ namespace SimpleEventStore.AzureDocumentDb
             await CreateCollectionIfItDoesNotExist();
             
             cancellationToken.ThrowIfCancellationRequested();
-            await CreateAppendStoredProcedureIfItDoesNotExist();
-
-
-            cancellationToken.ThrowIfCancellationRequested();
-            await SetDatabaseOfferThroughput();
-            
-            cancellationToken.ThrowIfCancellationRequested();
-            await SetCollectionOfferThroughput();
+            await Task.WhenAll(
+                InitialiseStoredProcedure(),
+                SetDatabaseOfferThroughput(),
+                SetCollectionOfferThroughput()
+                );
 
             return this;
         }
@@ -75,7 +68,7 @@ namespace SimpleEventStore.AzureDocumentDb
 
                 loggingOptions.OnSuccess(ResponseInformation.FromWriteResponse(nameof(AppendToStream), result));
             }
-            catch (DocumentClientException ex) when (ex.Error.Message.Contains(ConcurrencyConflictErrorKey))
+            catch (DocumentClientException ex) when (ex.ResponseHeaders["x-ms-substatus"] == "409")
             {
                 throw new ConcurrencyException(ex.Error.Message, ex);
             }
@@ -137,18 +130,21 @@ namespace SimpleEventStore.AzureDocumentDb
             return client.CreateDocumentCollectionIfNotExistsAsync(databaseUri, collection, requestOptions);
         }
 
-        private async Task CreateAppendStoredProcedureIfItDoesNotExist()
+        private async Task InitialiseStoredProcedure()
         {
+            var sproc = AppendSprocProvider.GetAppendSprocData();
+            storedProcLink = UriFactory.CreateStoredProcedureUri(databaseName, collectionOptions.CollectionName, sproc.Name);
+
             var query = client.CreateStoredProcedureQuery(commitsLink)
-                .Where(x => x.Id == AppendStoredProcedureName)
+                .Where(x => x.Id == sproc.Name)
                 .AsDocumentQuery();
 
             if (!(await query.ExecuteNextAsync<StoredProcedure>()).Any())
             {
                 await client.CreateStoredProcedureAsync(commitsLink, new StoredProcedure
                 {
-                    Id = AppendStoredProcedureName,
-                    Body = Resources.GetString("appendToStream.js")
+                    Id = sproc.Name,
+                    Body = sproc.Body
                 });
             }
         }

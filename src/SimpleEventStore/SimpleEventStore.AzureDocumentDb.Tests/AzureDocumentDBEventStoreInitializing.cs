@@ -1,10 +1,8 @@
 using System;
 using System.Linq;
-using System.Net;
 using System.Threading.Tasks;
 using Microsoft.Azure.Documents;
 using Microsoft.Azure.Documents.Client;
-using Microsoft.Azure.Documents.Linq;
 using NUnit.Framework;
 
 namespace SimpleEventStore.AzureDocumentDb.Tests
@@ -32,13 +30,20 @@ namespace SimpleEventStore.AzureDocumentDb.Tests
 
             var database = (await client.ReadDatabaseAsync(databaseUri)).Resource;
             var collection = (await client.ReadDocumentCollectionAsync(UriFactory.CreateDocumentCollectionUri(DatabaseName, collectionName))).Resource;
-            var storedProcedure = (await client.ReadStoredProcedureAsync(UriFactory.CreateStoredProcedureUri(DatabaseName, collectionName, TestConstants.AppendStoredProcedureName))).Resource;
+
+            var storedProcedure = client.CreateStoredProcedureQuery(collection.SelfLink)
+                .Where(r => r.Id.StartsWith("appendToStream-"))
+                .AsEnumerable()
+                .OfType<StoredProcedure>()
+                .Single();
+
             var offer = client.CreateOfferQuery()
                 .Where(r => r.ResourceLink == collection.SelfLink)
                 .AsEnumerable()
                 .OfType<OfferV2>()
                 .Single();
 
+            Assert.That(storedProcedure, Is.Not.Null);
             Assert.That(offer.Content.OfferThroughput, Is.EqualTo(TestConstants.RequestUnits));
             Assert.That(collection.DefaultTimeToLive, Is.Null);
             Assert.That(collection.PartitionKey.Paths.Count, Is.EqualTo(1));

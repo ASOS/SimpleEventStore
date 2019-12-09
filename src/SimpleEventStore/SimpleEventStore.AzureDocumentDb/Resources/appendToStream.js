@@ -1,49 +1,63 @@
-function appendToStream(documents) {
+function appendToStream(events) {
     var context = getContext();
     var collection = context.getCollection();
-    var collectionLink = collection.getSelfLink();
-    var streamId = documents[0].streamId;
-    var expectedEventNumber = documents[0].eventNumber - 1;
+    var streamId = events[0].streamId;
+    var firstEventNumber = events[0].eventNumber;
 
-    var concurrencyQuery = {
-        query: "SELECT TOP 1 c.eventNumber FROM Commits c WHERE c.streamId = @streamId ORDER BY c.eventNumber DESC",
-        parameters: [{ name: "@streamId", value: streamId }]
-    };
-
-    var accepted = collection.queryDocuments(collectionLink, concurrencyQuery, {}, onConcurrencyQueryCompleted);
-
-    if (!accepted) throw new Error("Concurrency query not accepted.");
-
-    function onConcurrencyQueryCompleted(err, doc, options) {
-        if (err) throw err;
-
-        var actualEventNumber = doc.length > 0 ? doc[0].eventNumber : 0;
-
-        if (actualEventNumber !== expectedEventNumber) {
-            throw new Error("Concurrency conflict. Expected revision " + expectedEventNumber + ", actual " + actualEventNumber + ")");
-        }
-
-        createDocuments();
+    if (firstEventNumber == 1) {
+        createEvents();
+    }
+    else {
+        createEventsOnlyIfPreviousEventExists();
     }
 
-    function createDocuments() {
+    function createEventsOnlyIfPreviousEventExists() {
+        var previousEventNumber = firstEventNumber - 1;
+        var previousDocId = streamId + ":" + previousEventNumber;
+        var previousDocLink = collection.getAltLink() + '/docs/' + previousDocId;
+
+        var isAccepted = collection.readDocument(previousDocLink, {}, onPreviousEventCompleted);
+        if (!isAccepted) {
+            throw new Error(500, "Existing event read not accepted for creation.");
+        }
+
+        function onPreviousEventCompleted(err, doc, options) {
+            if (err) {
+                if (err.number == 404) {
+                    throw new Error(409, "Previous Event" + previousEventNumber + " not found for stream '" + streamId + "'")
+                }
+                throw err;
+            }
+
+            createEvents();
+        }
+    }
+
+    function createEvents() {
         var index = 0;
-        createDocument(documents[index]);
+        var collectionLink = collection.getSelfLink();
+        createDocument(events[index]);
 
-        // NOTE: isAccepted states if the write is going to be processed
         function createDocument(document) {
-            var accepted = collection.createDocument(collectionLink, document, onDocumentCreated);
+            var isAccepted = collection.createDocument(collectionLink, document, onDocumentCreated);
 
-            if (!accepted) throw new Error("Document not accepted for creation.");
+            if (!isAccepted) {
+                throw new Error(500, "Event at index " + index + "not accepted for creation.");
+            }
         }
 
         function onDocumentCreated(err, doc, options) {
-            if (err) throw err;
+            if (err) {
+                if (err.number == 409) {
+                    throw new Error(409, "Failed to create event at index " + index + ". Event Number " + events[index].eventNumber + " already exists for stream '" + streamId + "'")
+                }
+                throw err;
+            }
 
             index++;
 
-            if (index < documents.length) {
-                createDocument(documents[index]);
+            if (index < events.length) {
+                createDocument(events[index]);
             }
             else {
                 context.getResponse().setBody("Events written successfully");
