@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -83,27 +84,44 @@ namespace SimpleEventStore.AzureDocumentDb
 
         public async Task<IReadOnlyCollection<StorageEvent>> ReadStreamForwards(string streamId, int startPosition, int numberOfEventsToRead, CancellationToken cancellationToken = default)
         {
-            int endPosition = numberOfEventsToRead == int.MaxValue ? int.MaxValue : startPosition + numberOfEventsToRead;
-
-            var eventsQuery = this.client.CreateDocumentQuery<DocumentDbStorageEvent>(commitsLink)
-                .Where(x => x.StreamId == streamId && x.EventNumber >= startPosition && x.EventNumber <= endPosition)
-                .OrderBy(x => x.EventNumber)
-                .AsDocumentQuery();
-
-            var events = new List<StorageEvent>();
-
-            while (eventsQuery.HasMoreResults)
+            int upperBound = numberOfEventsToRead == int.MaxValue ? int.MaxValue : startPosition + numberOfEventsToRead - 1;
+            var queryOptions = new FeedOptions
             {
-                var response = await eventsQuery.ExecuteNextAsync<DocumentDbStorageEvent>(cancellationToken);
-                loggingOptions.OnSuccess(ResponseInformation.FromReadResponse(nameof(ReadStreamForwards), response));
+                MaxItemCount = numberOfEventsToRead,
+                PartitionKey = new PartitionKey(streamId)
+            };
 
-                foreach (var e in response)
+            var querySpec = new SqlQuerySpec
+            {
+                QueryText = @"SELECT VALUE e
+                            FROM e
+                            WHERE e.streamId = @StreamId
+                                AND (e.eventNumber BETWEEN @LowerBound AND @UpperBound)
+                            ORDER BY e.streamId ASC, e.eventNumber ASC",
+                Parameters = new SqlParameterCollection
                 {
-                    events.Add(e.ToStorageEvent(this.typeMap, this.jsonSerializer));
+                    new SqlParameter("@StreamId", streamId),
+                    new SqlParameter("@LowerBound", startPosition),
+                    new SqlParameter("@UpperBound", upperBound),
                 }
-            }
+            };
 
-            return events.AsReadOnly();
+            using(var eventsQuery = this.client.CreateDocumentQuery<DocumentDbStorageEvent>(commitsLink, querySpec, queryOptions).AsDocumentQuery())
+            {
+                var events = new List<StorageEvent>();
+
+                while (eventsQuery.HasMoreResults)
+                {
+                    var response = await eventsQuery.ExecuteNextAsync<DocumentDbStorageEvent>(cancellationToken);
+                    loggingOptions.OnSuccess(ResponseInformation.FromReadResponse(nameof(ReadStreamForwards), response));
+
+                    foreach (var e in response)
+                    {
+                        events.Add(e.ToStorageEvent(this.typeMap, this.jsonSerializer));
+                    }
+                }
+                return events.AsReadOnly();
+            }
         }
 
         private Task CreateDatabaseIfItDoesNotExist()
@@ -128,6 +146,11 @@ namespace SimpleEventStore.AzureDocumentDb
             collection.IndexingPolicy.IncludedPaths.Add(new IncludedPath { Path = "/*" });
             collection.IndexingPolicy.ExcludedPaths.Add(new ExcludedPath { Path = "/body/*" });
             collection.IndexingPolicy.ExcludedPaths.Add(new ExcludedPath { Path = "/metadata/*" });
+
+            collection.IndexingPolicy.CompositeIndexes.Add(new Collection<CompositePath>{
+                    new CompositePath{ Path = "/streamId", Order = CompositePathSortOrder.Ascending},
+                    new CompositePath{ Path = "/eventNumber", Order = CompositePathSortOrder.Ascending},
+                });
 
             var requestOptions = new RequestOptions
             {
