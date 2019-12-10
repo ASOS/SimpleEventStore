@@ -17,12 +17,11 @@ namespace SimpleEventStore.AzureDocumentDb.Tests
         public async Task when_appending_an_event_that_requires_a_converter_the_event_is_saved_and_read()
         {
             var streamId = Guid.NewGuid().ToString();
-            var subject = await GetEventStore();
             var @event = new EventData(Guid.NewGuid(), new OrderProcessed(streamId, new Version(1, 2, 0)));
             
-            await subject.AppendToStream(streamId, 0, @event);
+            await Subject.AppendToStream(streamId, 0, @event);
 
-            var stream = await subject.ReadStreamForwards(streamId);
+            var stream = await Subject.ReadStreamForwards(streamId);
             Assert.That(stream.Count, Is.EqualTo(1));
             Assert.That(stream.Single().StreamId, Is.EqualTo(streamId));
             Assert.That(stream.Single().EventId, Is.EqualTo(@event.EventId));
@@ -32,7 +31,7 @@ namespace SimpleEventStore.AzureDocumentDb.Tests
         protected override Task<IStorageEngine> CreateStorageEngine()
         {
             return StorageEngineFactory.Create("JsonSerializationSettingsTests",
-                new JsonSerializerSettings
+                settings: new JsonSerializerSettings
                 {
                     Converters = new List<JsonConverter>
                     {

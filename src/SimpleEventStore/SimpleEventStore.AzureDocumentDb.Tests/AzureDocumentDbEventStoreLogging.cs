@@ -40,36 +40,9 @@ namespace SimpleEventStore.AzureDocumentDb.Tests
             Assert.That(logCount, Is.EqualTo(2));
         }
 
-        private static Task<IStorageEngine> CreateStorageEngine(Action<ResponseInformation> onSuccessCallback, string databaseName = "LoggingTests")
+        private static Task<IStorageEngine> CreateStorageEngine(Action<ResponseInformation> onSuccessCallback, string collectionName = "LoggingTests")
         {
-            var config = new ConfigurationBuilder()
-                .AddJsonFile("appsettings.json")
-                .AddEnvironmentVariables()
-                .Build();
-
-            var documentDbUri = config["Uri"];
-            var authKey = config["AuthKey"];
-            var consistencyLevel = config["ConsistencyLevel"];
-
-            if (!Enum.TryParse(consistencyLevel, true, out ConsistencyLevel consistencyLevelEnum))
-            {
-                throw new Exception($"The ConsistencyLevel value {consistencyLevel} is not supported");
-            }
-
-            DocumentClient client = new DocumentClient(new Uri(documentDbUri), authKey);
-
-            return new AzureDocumentDbStorageEngineBuilder(client, databaseName)
-                .UseCollection(o =>
-                {
-                    o.ConsistencyLevel = consistencyLevelEnum;
-                    o.CollectionRequestUnits = 400;
-                })
-                .UseLogging(o =>
-                {
-                    o.Success = onSuccessCallback;
-                })
-                .Build()
-                .Initialise();
+            return StorageEngineFactory.Create("LoggingTests", builderOverrides: x => x.UseLogging(o => o.Success = onSuccessCallback));
         }
     }
 }

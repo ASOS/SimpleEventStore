@@ -10,13 +10,13 @@ namespace SimpleEventStore.AzureDocumentDb.Tests
 {
     internal static class StorageEngineFactory
     {
-        internal static Task<IStorageEngine> Create(string databaseName, Action<CollectionOptions> collectionOverrides = null, Action<DatabaseOptions> databaseOverrides = null)
-        {
-            return Create(databaseName, new JsonSerializerSettings(), collectionOverrides, databaseOverrides);
-        }
+        public const string DefaultDatabaseName = "EventStoreTests";
 
-        internal static Task<IStorageEngine> Create(string databaseName, JsonSerializerSettings settings, Action<CollectionOptions> collectionOverrides = null, Action<DatabaseOptions> databaseOverrides = null)
+        internal static Task<IStorageEngine> Create(string collectionName, string databaseName = null, Action<AzureDocumentDbStorageEngineBuilder> builderOverrides = null, JsonSerializerSettings settings = null)
         {
+            settings = settings ?? new JsonSerializerSettings();
+            databaseName = databaseName ?? DefaultDatabaseName;
+
             var config = new ConfigurationBuilder()
                 .AddJsonFile("appsettings.json")
                 .AddEnvironmentVariables()
@@ -32,25 +32,27 @@ namespace SimpleEventStore.AzureDocumentDb.Tests
 
             var client = DocumentClientFactory.Create(settings);
 
-            return new AzureDocumentDbStorageEngineBuilder(client, databaseName)
+            var builder = new AzureDocumentDbStorageEngineBuilder(client, databaseName)
                 .UseDatabase(o =>
                 {
-                    databaseOverrides?.Invoke(o);
+                    o.DatabaseRequestUnits = TestConstants.RequestUnits;
                 })
                 .UseCollection(o =>
                 {
+                    o.CollectionName = collectionName;
                     o.ConsistencyLevel = consistencyLevelEnum;
-                    o.CollectionRequestUnits = TestConstants.RequestUnits;
-                    if (collectionOverrides != null) collectionOverrides(o);
+                    o.CollectionRequestUnits = null;
                 })
                 .UseTypeMap(new ConfigurableSerializationTypeMap()
                     .RegisterTypes(
                         typeof(OrderCreated).GetTypeInfo().Assembly,
                         t => t.Namespace != null && t.Namespace.EndsWith("Events"),
                         t => t.Name))
-                .UseJsonSerializerSettings(settings)
-                .Build()
-                .Initialise();
+                .UseJsonSerializerSettings(settings);
+
+            builderOverrides?.Invoke(builder);
+
+            return builder.Build().Initialise();
         }
     }
 }
