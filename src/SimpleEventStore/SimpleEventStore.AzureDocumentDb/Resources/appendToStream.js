@@ -4,7 +4,7 @@ function appendToStream(events) {
     var streamId = events[0].streamId;
     var firstEventNumber = events[0].eventNumber;
 
-    if (firstEventNumber == 1) {
+    if (firstEventNumber === 1) {
         createEvents();
     }
     else {
@@ -23,7 +23,7 @@ function appendToStream(events) {
 
         function onPreviousEventCompleted(err, doc, options) {
             if (err) {
-                if (err.number == 404) {
+                if (err.number === 404) {
                     throw new Error(409, "Previous Event" + previousEventNumber + " not found for stream '" + streamId + "'")
                 }
                 throw err;
@@ -48,7 +48,7 @@ function appendToStream(events) {
 
         function onDocumentCreated(err, doc, options) {
             if (err) {
-                if (err.number == 409) {
+                if (err.number === 409) {
                     throw new Error(409, "Failed to create event at index " + index + ". Event Number " + events[index].eventNumber + " already exists for stream '" + streamId + "'")
                 }
                 throw err;
