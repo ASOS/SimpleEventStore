@@ -88,25 +88,39 @@ namespace SimpleEventStore.CosmosDb
                 ? int.MaxValue
                 : startPosition + numberOfEventsToRead;
 
-            var eventsQuery = _collection.GetItemLinqQueryable<CosmosDbStorageEvent>()
-                .Where(x => x.StreamId == streamId && x.EventNumber >= startPosition && x.EventNumber <= endPosition)
-                .OrderBy(x => x.EventNumber)
-                .ToFeedIterator();
+            var queryDefinition = new QueryDefinition(@"
+                    SELECT VALUE e
+                    FROM e
+                    WHERE e.streamId = @StreamId
+                        AND (e.eventNumber BETWEEN @LowerBound AND @UpperBound)
+                    ORDER BY e.streamId ASC"
+                )
+                .WithParameter("@StreamId", streamId)
+                .WithParameter("@LowerBound", startPosition)
+                .WithParameter("@UpperBound", endPosition);
 
-            var events = new List<StorageEvent>();
-
-            while (eventsQuery.HasMoreResults)
+            var options = new QueryRequestOptions
             {
-                var response = await eventsQuery.ReadNextAsync(cancellationToken);
-                _loggingOptions.OnSuccess(ResponseInformation.FromReadResponse(nameof(ReadStreamForwards), response));
+                MaxItemCount = numberOfEventsToRead,
+                PartitionKey = new PartitionKey(streamId)
+            };
 
-                foreach (var e in response)
+            using (var eventsQuery = _collection.GetItemQueryIterator<CosmosDbStorageEvent>(queryDefinition, requestOptions: options))
+            {
+                var events = new List<StorageEvent>();
+                while (eventsQuery.HasMoreResults)
                 {
-                    events.Add(e.ToStorageEvent(_typeMap, _jsonSerializer));
+                    var response = await eventsQuery.ReadNextAsync(cancellationToken);
+                    _loggingOptions.OnSuccess(ResponseInformation.FromReadResponse(nameof(ReadStreamForwards), response));
+
+                    foreach (var e in response)
+                    {
+                        events.Add(e.ToStorageEvent(_typeMap, _jsonSerializer));
+                    }
                 }
+                return events.AsReadOnly();
             }
 
-            return events.AsReadOnly();
         }
 
         private Task<DatabaseResponse> CreateDatabaseIfItDoesNotExist()
