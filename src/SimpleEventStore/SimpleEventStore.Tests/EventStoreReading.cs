@@ -39,6 +39,23 @@ namespace SimpleEventStore.Tests
         }
 
         [Test]
+        public async Task when_reading_a_stream_events_returned_in_correct_order()
+        {
+            var streamId = Guid.NewGuid().ToString();
+
+            await Subject.AppendToStream(streamId, 0, new EventData(Guid.NewGuid(), new OrderCreated(streamId)));
+            await Subject.AppendToStream(streamId, 1, new EventData(Guid.NewGuid(), new OrderDispatched(streamId)));
+            await Subject.AppendToStream(streamId, 2, new EventData(Guid.NewGuid(), new OrderDispatched(streamId)));
+
+            var events = await Subject.ReadStreamForwards(streamId);
+
+            Assert.That(events.Count, Is.EqualTo(3));
+            Assert.That(events.First().EventNumber, Is.EqualTo(1));
+            Assert.That(events.Skip(1).First().EventNumber, Is.EqualTo(2));
+            Assert.That(events.Skip(2).First().EventNumber, Is.EqualTo(3));
+        }
+
+        [Test]
         [TestCase(null)]
         [TestCase("")]
         [TestCase(" ")]

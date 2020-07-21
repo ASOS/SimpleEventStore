@@ -93,7 +93,7 @@ namespace SimpleEventStore.CosmosDb
                     FROM e
                     WHERE e.streamId = @StreamId
                         AND (e.eventNumber BETWEEN @LowerBound AND @UpperBound)
-                    ORDER BY e.streamId ASC"
+                    ORDER BY e.eventNumber ASC"
                 )
                 .WithParameter("@StreamId", streamId)
                 .WithParameter("@LowerBound", startPosition)
