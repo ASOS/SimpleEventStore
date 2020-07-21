@@ -105,22 +105,21 @@ namespace SimpleEventStore.CosmosDb
                 PartitionKey = new PartitionKey(streamId)
             };
 
-            using (var eventsQuery = _collection.GetItemQueryIterator<CosmosDbStorageEvent>(queryDefinition, requestOptions: options))
-            {
-                var events = new List<StorageEvent>();
-                while (eventsQuery.HasMoreResults)
-                {
-                    var response = await eventsQuery.ReadNextAsync(cancellationToken);
-                    _loggingOptions.OnSuccess(ResponseInformation.FromReadResponse(nameof(ReadStreamForwards), response));
+            using var eventsQuery = _collection.GetItemQueryIterator<CosmosDbStorageEvent>(queryDefinition, requestOptions: options);
+            var events = new List<StorageEvent>();
 
-                    foreach (var e in response)
-                    {
-                        events.Add(e.ToStorageEvent(_typeMap, _jsonSerializer));
-                    }
+            while (eventsQuery.HasMoreResults)
+            {
+                var response = await eventsQuery.ReadNextAsync(cancellationToken);
+                _loggingOptions.OnSuccess(ResponseInformation.FromReadResponse(nameof(ReadStreamForwards), response));
+
+                foreach (var e in response)
+                {
+                    events.Add(e.ToStorageEvent(_typeMap, _jsonSerializer));
                 }
-                return events.AsReadOnly();
             }
 
+            return events.AsReadOnly();
         }
 
         private Task<DatabaseResponse> CreateDatabaseIfItDoesNotExist()
