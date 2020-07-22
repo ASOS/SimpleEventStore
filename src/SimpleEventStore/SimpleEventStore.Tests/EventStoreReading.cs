@@ -71,6 +71,7 @@ namespace SimpleEventStore.Tests
 
             await Subject.AppendToStream(streamId, 0, new EventData(Guid.NewGuid(), new OrderCreated(streamId)));
             await Subject.AppendToStream(streamId, 1, new EventData(Guid.NewGuid(), new OrderDispatched(streamId)));
+            await Subject.AppendToStream(streamId, 2, new EventData(Guid.NewGuid(), new OrderProcessed(streamId, default)));
 
             var events = await Subject.ReadStreamForwards(streamId, startPosition: 2, numberOfEventsToRead: 1);
 

@@ -86,7 +86,7 @@ namespace SimpleEventStore.CosmosDb
         {
             int endPosition = numberOfEventsToRead == int.MaxValue
                 ? int.MaxValue
-                : startPosition + numberOfEventsToRead;
+                : startPosition + numberOfEventsToRead - 1;
 
             var queryDefinition = new QueryDefinition(@"
                     SELECT VALUE e
