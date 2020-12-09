@@ -11,9 +11,6 @@
   <ItemGroup>
     <ProjectReference Include="..\SimpleEventStore\SimpleEventStore.csproj" />
   </ItemGroup>
-  <ItemGroup>
-    <EmbeddedResource Include="Resources\appendToStream.js" />
-  </ItemGroup>
   <PropertyGroup>
     <Title>Asos.SimpleEventStore.CosmosDb</Title>
     <Description>Provides a DocumentDB storage engine for Simple Event Store (SES)</Description>

@@ -1,10 +1,9 @@
 ﻿using System.Collections.Generic;
 using System.Linq;
+using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Azure.Cosmos;
-using Microsoft.Azure.Cosmos.Linq;
-using Microsoft.Azure.Cosmos.Scripts;
 using Newtonsoft.Json;
 
 namespace SimpleEventStore.CosmosDb
@@ -20,7 +19,6 @@ namespace SimpleEventStore.CosmosDb
         private readonly DatabaseOptions _databaseOptions;
         private Database _database;
         private Container _collection;
-        private (string Name, string Body) _storedProcedureInformation;
 
         internal AzureCosmosDbStorageEngine(CosmosClient client, string databaseName,
             CollectionOptions collectionOptions, DatabaseOptions databaseOptions, LoggingOptions loggingOptions,
@@ -47,7 +45,6 @@ namespace SimpleEventStore.CosmosDb
 
             cancellationToken.ThrowIfCancellationRequested();
             await Task.WhenAll(
-                InitialiseStoredProcedure(),
                 SetDatabaseOfferThroughput(),
                 SetCollectionOfferThroughput()
             );
@@ -58,27 +55,59 @@ namespace SimpleEventStore.CosmosDb
         public async Task AppendToStream(string streamId, IEnumerable<StorageEvent> events,
             CancellationToken cancellationToken = default)
         {
-            var docs = events.Select(d => CosmosDbStorageEvent.FromStorageEvent(d, _typeMap, _jsonSerializer))
-                .ToList();
-
             try
             {
-                var result = await _collection.Scripts.ExecuteStoredProcedureAsync<dynamic>(
-                    _storedProcedureInformation.Name,
-                    new PartitionKey(streamId),
-                    new[] {docs},
-                    new StoredProcedureRequestOptions
-                    {
-                        ConsistencyLevel = collectionOptions.ConsistencyLevel
-                    },
-                    cancellationToken);
+                var transactionalBatchItemRequestOptions = new TransactionalBatchItemRequestOptions
+                {
+                    EnableContentResponseOnWrite = false
+                };
 
-                _loggingOptions.OnSuccess(ResponseInformation.FromWriteResponse(nameof(AppendToStream), result));
+                var storageEvents = events.ToList();
+                var batch = storageEvents.Aggregate(
+                    _collection.CreateTransactionalBatch(new PartitionKey(streamId)),
+                    (b, e) => b.CreateItem(CosmosDbStorageEvent.FromStorageEvent(e, _typeMap, _jsonSerializer), transactionalBatchItemRequestOptions));
+
+                var firstEventNumber = storageEvents.First().EventNumber;
+
+                var batchResponse = firstEventNumber == 1 ?
+                    await CreateEvents(batch, cancellationToken) :
+                    await CreateEventsOnlyIfPreviousEventExists(batch, streamId, firstEventNumber - 1, cancellationToken);
+
+                _loggingOptions.OnSuccess(ResponseInformation.FromWriteResponse(nameof(AppendToStream), batchResponse));
             }
-            catch (CosmosException ex) when (ex.Headers["x-ms-substatus"] == "409" || ex.SubStatusCode == 409)
+            catch (CosmosException ex) when (ex.StatusCode == HttpStatusCode.Conflict|| ex.Headers["x-ms-substatus"] == "409" || ex.SubStatusCode == 409)
             {
                 throw new ConcurrencyException(ex.ResponseBody, ex);
             }
+        }
+
+        private static async Task<TransactionalBatchResponse> CreateEvents(
+            TransactionalBatch batch, CancellationToken cancellationToken)
+        {
+            using var batchResponse = await batch.ExecuteAsync(cancellationToken);
+
+            return batchResponse.IsSuccessStatusCode
+                ? batchResponse
+                : throw new CosmosException(batchResponse.ErrorMessage, batchResponse.StatusCode, 0,
+                    batchResponse.ActivityId, batchResponse.RequestCharge);
+        }
+
+        private static async Task<TransactionalBatchResponse> CreateEventsOnlyIfPreviousEventExists(
+            TransactionalBatch batch, string streamId, int previousEventNumber, CancellationToken cancellationToken)
+        {
+            batch.ReadItem(streamId + $":{previousEventNumber}", new TransactionalBatchItemRequestOptions { EnableContentResponseOnWrite = true });
+            using var batchResponse = await batch.ExecuteAsync(cancellationToken);
+
+            return batchResponse.IsSuccessStatusCode
+                ? batchResponse
+                : throw batchResponse.StatusCode switch
+                {
+                    HttpStatusCode.NotFound => new CosmosException(
+                        $"Previous Event {previousEventNumber} not found for stream '{streamId}'",
+                        HttpStatusCode.Conflict, 0, batchResponse.ActivityId, batchResponse.RequestCharge),
+                    _ => new CosmosException(batchResponse.ErrorMessage, batchResponse.StatusCode, 0,
+                        batchResponse.ActivityId, batchResponse.RequestCharge)
+                };
         }
 
         public async Task<IReadOnlyCollection<StorageEvent>> ReadStreamForwards(string streamId, int startPosition,
@@ -150,19 +179,6 @@ namespace SimpleEventStore.CosmosDb
 
             return _database.CreateContainerIfNotExistsAsync(collectionProperties,
                 collectionOptions.CollectionRequestUnits);
-        }
-
-        private async Task InitialiseStoredProcedure()
-        {
-            _storedProcedureInformation = AppendSprocProvider.GetAppendSprocData();
-            var storedProcedures = await _collection.Scripts.GetStoredProcedureQueryIterator<StoredProcedureProperties>(
-                $"SELECT * FROM s where s.id = '{_storedProcedureInformation.Name}'").ReadNextAsync();
-
-            if (!storedProcedures.Resource.Any())
-            {
-                await _collection.Scripts.CreateStoredProcedureAsync(
-                    new StoredProcedureProperties(_storedProcedureInformation.Name, _storedProcedureInformation.Body));
-            }
         }
 
         private async Task SetCollectionOfferThroughput()

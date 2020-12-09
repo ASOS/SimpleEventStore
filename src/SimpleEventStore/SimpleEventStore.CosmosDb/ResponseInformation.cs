@@ -29,16 +29,19 @@ namespace SimpleEventStore.CosmosDb
             };
         }
 
-        public static ResponseInformation FromReadResponse(string requestIdentifier, ItemResponse<CosmosDbStorageEvent> response)
+        public static ResponseInformation FromWriteResponse(string requestIdentifier, TransactionalBatchResponse response)
         {
             return new ResponseInformation
             {
                 RequestIdentifier = requestIdentifier,
                 CurrentResourceQuotaUsage = GetCurrentResourceQuotaUsage(response),
-                MaxResourceQuota = GetMaxResourceQuota(response),
-                RequestCharge = response.RequestCharge,
-                ResponseHeaders = HeaderToNamedValueCollection(response.Headers)
+                RequestCharge = response.RequestCharge
             };
+        }
+
+        private static string GetCurrentResourceQuotaUsage(TransactionalBatchResponse response)
+        {
+            return response.RequestCharge.ToString();
         }
 
         private static string GetCurrentResourceQuotaUsage<T>(Response<T> response)
