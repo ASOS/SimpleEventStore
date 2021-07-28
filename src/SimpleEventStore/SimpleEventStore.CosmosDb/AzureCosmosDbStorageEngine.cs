@@ -11,9 +11,11 @@ namespace SimpleEventStore.CosmosDb
 {
     internal class AzureCosmosDbStorageEngine : IStorageEngine
     {
+        private const int DefaultAutoscaleMaxThroughput = 4000;
+
         private readonly CosmosClient _client;
         private readonly string _databaseName;
-        private readonly CollectionOptions collectionOptions;
+        private readonly CollectionOptions _collectionOptions;
         private readonly LoggingOptions _loggingOptions;
         private readonly ISerializationTypeMap _typeMap;
         private readonly JsonSerializer _jsonSerializer;
@@ -29,7 +31,7 @@ namespace SimpleEventStore.CosmosDb
             _client = client;
             _databaseName = databaseName;
             _databaseOptions = databaseOptions;
-            this.collectionOptions = collectionOptions;
+            _collectionOptions = collectionOptions;
             _loggingOptions = loggingOptions;
             _typeMap = typeMap;
             _jsonSerializer = serializer;
@@ -66,10 +68,10 @@ namespace SimpleEventStore.CosmosDb
                 var result = await _collection.Scripts.ExecuteStoredProcedureAsync<dynamic>(
                     _storedProcedureInformation.Name,
                     new PartitionKey(streamId),
-                    new[] {docs},
+                    new[] { docs },
                     new StoredProcedureRequestOptions
                     {
-                        ConsistencyLevel = collectionOptions.ConsistencyLevel
+                        ConsistencyLevel = _collectionOptions.ConsistencyLevel
                     },
                     cancellationToken);
 
@@ -124,14 +126,31 @@ namespace SimpleEventStore.CosmosDb
 
         private Task<DatabaseResponse> CreateDatabaseIfItDoesNotExist()
         {
-            return _client.CreateDatabaseIfNotExistsAsync(_databaseName, _databaseOptions.DatabaseRequestUnits);
+            if (_databaseOptions.UseAutoscale)
+            {
+                if (_databaseOptions.DatabaseRequestUnits != null)
+                {
+                    return _client.CreateDatabaseIfNotExistsAsync(_databaseName,
+                        ThroughputProperties.CreateAutoscaleThroughput((int)_databaseOptions.DatabaseRequestUnits));
+                }
+                else
+                {
+                    return _client.CreateDatabaseIfNotExistsAsync(_databaseName,
+                        ThroughputProperties.CreateAutoscaleThroughput(DefaultAutoscaleMaxThroughput));
+                }
+            }
+            else
+            {
+                return _client.CreateDatabaseIfNotExistsAsync(_databaseName,
+                    _databaseOptions.DatabaseRequestUnits);
+            }
         }
 
         private Task<ContainerResponse> CreateCollectionIfItDoesNotExist()
         {
             var collectionProperties = new ContainerProperties()
             {
-                Id = collectionOptions.CollectionName,
+                Id = _collectionOptions.CollectionName,
                 IndexingPolicy = new IndexingPolicy
                 {
                     IncludedPaths =
@@ -144,12 +163,28 @@ namespace SimpleEventStore.CosmosDb
                         new ExcludedPath {Path = "/metadata/*"}
                     }
                 },
-                DefaultTimeToLive = collectionOptions.DefaultTimeToLive,
+                DefaultTimeToLive = _collectionOptions.DefaultTimeToLive,
                 PartitionKeyPath = "/streamId"
             };
 
-            return _database.CreateContainerIfNotExistsAsync(collectionProperties,
-                collectionOptions.CollectionRequestUnits);
+            if (_collectionOptions.UseAutoscale)
+            {
+                if (_collectionOptions.CollectionRequestUnits != null)
+                {
+                    return _database.CreateContainerIfNotExistsAsync(collectionProperties,
+                        ThroughputProperties.CreateAutoscaleThroughput((int)_collectionOptions.CollectionRequestUnits));
+                }
+                else
+                {
+                    return _database.CreateContainerIfNotExistsAsync(collectionProperties,
+                        ThroughputProperties.CreateAutoscaleThroughput(DefaultAutoscaleMaxThroughput));
+                }
+            }
+            else
+            {
+                return _database.CreateContainerIfNotExistsAsync(collectionProperties,
+                    _collectionOptions.CollectionRequestUnits);
+            }
         }
 
         private async Task InitialiseStoredProcedure()
@@ -167,9 +202,16 @@ namespace SimpleEventStore.CosmosDb
 
         private async Task SetCollectionOfferThroughput()
         {
-            if (collectionOptions.CollectionRequestUnits != null)
+            if (_collectionOptions.CollectionRequestUnits != null)
             {
-                await _collection.ReplaceThroughputAsync((int) collectionOptions.CollectionRequestUnits);
+                if (_collectionOptions.UseAutoscale)
+                {
+                    await _collection.ReplaceThroughputAsync(ThroughputProperties.CreateAutoscaleThroughput((int)_collectionOptions.CollectionRequestUnits));
+                }
+                else
+                {
+                    await _collection.ReplaceThroughputAsync((int)_collectionOptions.CollectionRequestUnits);
+                }
             }
         }
 
@@ -177,7 +219,14 @@ namespace SimpleEventStore.CosmosDb
         {
             if (_databaseOptions.DatabaseRequestUnits != null)
             {
-                await _database.ReplaceThroughputAsync((int) _databaseOptions.DatabaseRequestUnits);
+                if (_collectionOptions.UseAutoscale)
+                {
+                    await _database.ReplaceThroughputAsync(ThroughputProperties.CreateAutoscaleThroughput((int)_databaseOptions.DatabaseRequestUnits));
+                }
+                else
+                {
+                    await _database.ReplaceThroughputAsync((int)_databaseOptions.DatabaseRequestUnits);
+                }
             }
         }
     }

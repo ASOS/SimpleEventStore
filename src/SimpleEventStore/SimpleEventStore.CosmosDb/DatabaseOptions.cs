@@ -2,6 +2,8 @@
 {
     public class DatabaseOptions
     {
-        public int? DatabaseRequestUnits {get; set;}
+        public int? DatabaseRequestUnits { get; set; }
+
+        public bool UseAutoscale { get; set; }
     }
 }

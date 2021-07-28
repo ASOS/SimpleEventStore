@@ -17,6 +17,8 @@ namespace SimpleEventStore.CosmosDb
 
         public int? CollectionRequestUnits { get; set; }
 
+        public bool UseAutoscale { get; set; }
+
         public int? DefaultTimeToLive { get; set; }
     }
 }
