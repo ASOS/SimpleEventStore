@@ -15,7 +15,7 @@ namespace SimpleEventStore.CosmosDb.Tests
         internal static Task<IStorageEngine> Create(string collectionName, string databaseName = null, Action<AzureCosmosDbStorageEngineBuilder> builderOverrides = null, JsonSerializerSettings settings = null)
         {
             settings = settings ?? new JsonSerializerSettings();
-            
+
             databaseName = databaseName ?? DefaultDatabaseName;
 
             var config = new ConfigurationBuilder()
@@ -35,7 +35,7 @@ namespace SimpleEventStore.CosmosDb.Tests
             var builder = new AzureCosmosDbStorageEngineBuilder(client, databaseName)
                 .UseDatabase(o =>
                 {
-                    o.DatabaseRequestUnits = TestConstants.RequestUnits;
+                    o.DatabaseRequestUnits = 5000;
                 })
                 .UseCollection(o =>
                 {
