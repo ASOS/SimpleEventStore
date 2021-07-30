@@ -1,8 +1,6 @@
 using System;
-using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Azure.Cosmos;
-using Microsoft.Azure.Cosmos.Scripts;
 using NUnit.Framework;
 
 namespace SimpleEventStore.CosmosDb.Tests
@@ -23,24 +21,16 @@ namespace SimpleEventStore.CosmosDb.Tests
         public async Task when_initializing_all_expected_resources_are_created()
         {
             var collectionName = "AllExpectedResourcesAreCreated_" + Guid.NewGuid();
-            var storageEngine = await InitialiseStorageEngine(collectionName, collectionThroughput: TestConstants.RequestUnits);
+            await InitialiseStorageEngine(collectionName, collectionThroughput: TestConstants.RequestUnits);
 
             var database = client.GetDatabase(DatabaseName);
             var collection = database.GetContainer(collectionName);
-
-            const string queryText = "SELECT * FROM s";
-
-            var storedProcedures = await collection.Scripts.GetStoredProcedureQueryIterator<StoredProcedureProperties>(
-                queryText).ReadNextAsync();
-
-            var expectedStoredProcedure = storedProcedures.Resource.FirstOrDefault(s => s.Id.StartsWith("appendToStream-"));
 
             var collectionResponse = await collection.ReadContainerAsync();
             var collectionProperties = collectionResponse.Resource;
             
             var offer = await collection.ReadThroughputAsync();
 
-            Assert.That(expectedStoredProcedure, Is.Not.Null);
             Assert.That(offer, Is.EqualTo(TestConstants.RequestUnits));
             Assert.That(collectionProperties.DefaultTimeToLive, Is.Null);
             Assert.That(collectionProperties.PartitionKeyPath, Is.EqualTo("/streamId"));
