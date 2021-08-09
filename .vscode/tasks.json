@@ -1,22 +1,19 @@
 {
-    "version": "0.1.0",
+    "version": "2.0.0",
     "command": "dotnet",
-    "isShellCommand": true,
     "args": [],
     "tasks": [
         {
-            "taskName": "build",
+            "label": "build",
+            "type": "shell",
             "command": "powershell",
-            "options": {
-                "cwd": "${workspaceRoot}/build"
-            },           
             "args": [
                 "./build.ps1",
                 "-ConsistencyLevel",
                 "Session"
             ],
-            "isBuildCommand": true,
-            "problemMatcher": "$msCompile"
+            "problemMatcher": "$msCompile",
+            "group": "build"
         }
     ]
 }

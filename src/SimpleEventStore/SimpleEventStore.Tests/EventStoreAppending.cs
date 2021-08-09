@@ -48,7 +48,8 @@ namespace SimpleEventStore.Tests
             var streamId = Guid.NewGuid().ToString();
             var @event = new EventData(Guid.NewGuid(), new OrderDispatched(streamId));
 
-            Assert.ThrowsAsync<ConcurrencyException>(async () => await Subject.AppendToStream(streamId, expectedVersion, @event));
+            var exception = Assert.ThrowsAsync<ConcurrencyException>(async () => await Subject.AppendToStream(streamId, expectedVersion, @event));
+            Assert.That(exception.Message, Is.EqualTo($"Concurrency conflict when appending to stream {streamId}. Expected revision {expectedVersion}"));
         }
 
         [Test]
@@ -61,14 +62,15 @@ namespace SimpleEventStore.Tests
 
             var @event = new EventData(Guid.NewGuid(), new OrderDispatched(streamId));
 
-            Assert.ThrowsAsync<ConcurrencyException>(async () => await Subject.AppendToStream(streamId, expectedVersion, @event));
+            var exception = Assert.ThrowsAsync<ConcurrencyException>(async () => await Subject.AppendToStream(streamId, expectedVersion, @event));
+            Assert.That(exception.Message, Is.EqualTo($"Concurrency conflict when appending to stream {streamId}. Expected revision {expectedVersion}"));
         }
 
         [Test]
         [TestCase(null)]
         [TestCase("")]
         [TestCase(" ")]
-        public async Task when_appending_to_an_invalid_stream_id_an_argument_error_is_thrown(string streamId)
+        public void when_appending_to_an_invalid_stream_id_an_argument_error_is_thrown(string streamId)
         {
             Assert.ThrowsAsync<ArgumentException>(async () => await Subject.AppendToStream(streamId, 0, new EventData(Guid.NewGuid(), new OrderCreated(streamId))));
         }
@@ -108,7 +110,7 @@ namespace SimpleEventStore.Tests
         }
 
         [Test]
-        public async Task when_appending_to_a_stream_the_engine_honours_cancellation_token()
+        public void when_appending_to_a_stream_the_engine_honours_cancellation_token()
         {
             var streamId = Guid.NewGuid().ToString();
             var metadata = new TestMetadata { Value = "Hello" };
