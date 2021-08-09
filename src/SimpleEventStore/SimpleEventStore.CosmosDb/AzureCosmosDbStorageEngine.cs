@@ -55,20 +55,20 @@ namespace SimpleEventStore.CosmosDb
         public async Task AppendToStream(string streamId, IEnumerable<StorageEvent> events,
             CancellationToken cancellationToken = default)
         {
+            var storageEvents = events.ToList();
+            var firstEventNumber = storageEvents.First().EventNumber;
+            
             try
             {
                 var transactionalBatchItemRequestOptions = new TransactionalBatchItemRequestOptions
                 {
                     EnableContentResponseOnWrite = false
                 };
-
-                var storageEvents = events.ToList();
+                
                 var batch = storageEvents.Aggregate(
                     _collection.CreateTransactionalBatch(new PartitionKey(streamId)),
                     (b, e) => b.CreateItem(CosmosDbStorageEvent.FromStorageEvent(e, _typeMap, _jsonSerializer), transactionalBatchItemRequestOptions));
-
-                var firstEventNumber = storageEvents.First().EventNumber;
-
+                
                 var batchResponse = firstEventNumber == 1 ?
                     await CreateEvents(batch, cancellationToken) :
                     await CreateEventsOnlyIfPreviousEventExists(batch, streamId, firstEventNumber - 1, cancellationToken);
@@ -77,7 +77,9 @@ namespace SimpleEventStore.CosmosDb
             }
             catch (CosmosException ex) when (ex.StatusCode == HttpStatusCode.Conflict|| ex.Headers["x-ms-substatus"] == "409" || ex.SubStatusCode == 409)
             {
-                throw new ConcurrencyException(ex.ResponseBody, ex);
+                throw new ConcurrencyException(
+                    $"Concurrency conflict when appending to stream {streamId}. Expected revision {firstEventNumber - 1}",
+                    ex);
             }
         }
 

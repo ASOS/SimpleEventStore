@@ -26,7 +26,7 @@ namespace SimpleEventStore.InMemory
 
                 if (firstEvent.EventNumber - 1 != streams[streamId].Count)
                 {
-                    throw new ConcurrencyException($"Concurrency conflict when appending to stream {streamId}. Expected revision {firstEvent.EventNumber} : Actual revision {streams[streamId].Count}");
+                    throw new ConcurrencyException($"Concurrency conflict when appending to stream {streamId}. Expected revision {firstEvent.EventNumber - 1}");
                 }
 
                 cancellationToken.ThrowIfCancellationRequested();
