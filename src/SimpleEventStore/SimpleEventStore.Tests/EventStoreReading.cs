@@ -59,7 +59,7 @@ namespace SimpleEventStore.Tests
         [TestCase(null)]
         [TestCase("")]
         [TestCase(" ")]
-        public async Task when_reading_from_an_invalid_stream_id_an_argument_error_is_thrown(string streamId)
+        public void when_reading_from_an_invalid_stream_id_an_argument_error_is_thrown(string streamId)
         {
             Assert.ThrowsAsync<ArgumentException>(async () => await Subject.ReadStreamForwards(streamId));
         }
@@ -80,7 +80,7 @@ namespace SimpleEventStore.Tests
         }
 
         [Test]
-        public async Task when_reading_a_stream_the_engine_honours_cancellation_token()
+        public void when_reading_a_stream_the_engine_honours_cancellation_token()
         {
             var streamId = Guid.NewGuid().ToString();
 

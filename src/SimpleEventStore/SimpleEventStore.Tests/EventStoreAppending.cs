@@ -68,7 +68,7 @@ namespace SimpleEventStore.Tests
         [TestCase(null)]
         [TestCase("")]
         [TestCase(" ")]
-        public async Task when_appending_to_an_invalid_stream_id_an_argument_error_is_thrown(string streamId)
+        public void when_appending_to_an_invalid_stream_id_an_argument_error_is_thrown(string streamId)
         {
             Assert.ThrowsAsync<ArgumentException>(async () => await Subject.AppendToStream(streamId, 0, new EventData(Guid.NewGuid(), new OrderCreated(streamId))));
         }
@@ -108,7 +108,7 @@ namespace SimpleEventStore.Tests
         }
 
         [Test]
-        public async Task when_appending_to_a_stream_the_engine_honours_cancellation_token()
+        public void when_appending_to_a_stream_the_engine_honours_cancellation_token()
         {
             var streamId = Guid.NewGuid().ToString();
             var metadata = new TestMetadata { Value = "Hello" };
