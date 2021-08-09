@@ -48,7 +48,8 @@ namespace SimpleEventStore.Tests
             var streamId = Guid.NewGuid().ToString();
             var @event = new EventData(Guid.NewGuid(), new OrderDispatched(streamId));
 
-            Assert.ThrowsAsync<ConcurrencyException>(async () => await Subject.AppendToStream(streamId, expectedVersion, @event));
+            var exception = Assert.ThrowsAsync<ConcurrencyException>(async () => await Subject.AppendToStream(streamId, expectedVersion, @event));
+            Assert.That(exception.Message, Is.EqualTo($"Concurrency conflict when appending to stream {streamId}. Expected revision {expectedVersion}"));
         }
 
         [Test]
@@ -61,7 +62,8 @@ namespace SimpleEventStore.Tests
 
             var @event = new EventData(Guid.NewGuid(), new OrderDispatched(streamId));
 
-            Assert.ThrowsAsync<ConcurrencyException>(async () => await Subject.AppendToStream(streamId, expectedVersion, @event));
+            var exception = Assert.ThrowsAsync<ConcurrencyException>(async () => await Subject.AppendToStream(streamId, expectedVersion, @event));
+            Assert.That(exception.Message, Is.EqualTo($"Concurrency conflict when appending to stream {streamId}. Expected revision {expectedVersion}"));
         }
 
         [Test]
