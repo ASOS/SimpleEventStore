@@ -153,6 +153,8 @@ namespace SimpleEventStore.CosmosDb.Tests
 
             public NameValueCollection ResponseHeaders { get; }
 
+            public override string IndexMetrics => string.Empty;
+
             public override IEnumerator<TValue> GetEnumerator()
             {
                 yield return Activator.CreateInstance<TValue>();
