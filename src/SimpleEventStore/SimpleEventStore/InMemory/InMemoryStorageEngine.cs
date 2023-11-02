@@ -33,7 +33,7 @@ namespace SimpleEventStore.InMemory
 
                 streams[streamId].AddRange(events);
                 AddEventsToAllStream(events);
-            });
+            }, cancellationToken);
         }
 
         private void AddEventsToAllStream(IEnumerable<StorageEvent> events)
