@@ -38,14 +38,14 @@ stages:
     - job: Publish
       steps:
         - task: DownloadBuildArtifacts@0
-        displayName: 'Download artifacts'
+          displayName: 'Download artifacts'
           inputs:
             artifactName: 'drop'
             buildType: 'current'
             downloadType: 'single'
             downloadPath: '$(System.ArtifactsDirectory)'
         - task: NuGetCommand@2
-        displayName: Publish package to nuget.org using ASOS organisation account
+          displayName: Publish package to nuget.org using ASOS organisation account
           inputs:
             command: 'push'
             packagesToPush: '$(System.ArtifactsDirectory)/**/*.nupkg'
