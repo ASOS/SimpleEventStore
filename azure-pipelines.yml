@@ -24,9 +24,11 @@ stages:
             Import-Module "C:/Program Files/Azure Cosmos DB Emulator/PSModules/Microsoft.Azure.CosmosDB.Emulator"
             Start-CosmosDbEmulator
       - task: PowerShell@2
+        displayName: 'Building'
         inputs:
           filePath: '.\build.ps1'
       - task: PublishTestResults@2
+        displayName: 'Publish Test Results'
         condition: succeededOrFailed()
         inputs:
           testRunner: VSTest
