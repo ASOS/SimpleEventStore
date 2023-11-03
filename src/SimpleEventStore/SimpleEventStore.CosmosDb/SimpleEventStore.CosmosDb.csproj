@@ -13,13 +13,13 @@
   </ItemGroup>
   <PropertyGroup>
     <Title>Asos.SimpleEventStore.CosmosDb</Title>
-    <Description>Provides a DocumentDB storage engine for Simple Event Store (SES)</Description>
+    <Description>Uses Azure Cosmos DB as the stream database for Simple Event Store (SES)</Description>
     <Company>ASOS</Company>
-    <Copyright>Copyright ASOS © 2020</Copyright>
+    <Copyright>Copyright ASOS © 2023</Copyright>
     <Product>SimpleEventStore.CosmosDb</Product>
     <PackageId>Asos.SimpleEventStore.CosmosDb</PackageId>
     <Authors>ASOS</Authors>
-    <PackageTags>eventsourcing documentdb azure</PackageTags>
+    <PackageTags>eventsourcing azure cosmosdb</PackageTags>
     <PackageProjectUrl>https://github.com/ASOS/SimpleEventStore</PackageProjectUrl>
     <ApplicationIcon />
     <OutputTypeEx>library</OutputTypeEx>
