@@ -28,14 +28,8 @@ function Exec
 $outputDir = "../../output";
 Push-Location src\SimpleEventStore
 
-Write-Stage "Calculating Version"
-dotnet tool restore
-$gitVersion = dotnet gitversion | ConvertFrom-Json
-$buildVersion = $gitVersion.LegacySemVer
-Write-Host "Build version set to '$buildVersion'"
-
 Write-Stage "Building solution"
-Exec { dotnet build -c $Configuration -p:BuildVersion=$buildVersion }
+Exec { dotnet build -c $Configuration }
 
 Write-Stage "Running tests"
 $env:Uri = $Uri
@@ -44,9 +38,5 @@ $env:ConsistencyLevel = $ConsistencyLevel
 
 Exec { dotnet test SimpleEventStore.Tests -c $Configuration --no-build --logger trx }
 Exec { dotnet test SimpleEventStore.CosmosDb.Tests -c $Configuration --no-build --logger trx }
-
-Write-Stage "Creating nuget packages"
-Exec { dotnet pack SimpleEventStore -c $Configuration -o $outputDir -p:BuildVersion=$buildVersion --no-build }
-Exec { dotnet pack SimpleEventStore.CosmosDb -c $Configuration -o $outputDir  -p:BuildVersion=$buildVersion --no-build }
 
 Pop-Location

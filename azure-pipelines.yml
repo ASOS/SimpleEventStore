@@ -1,10 +1,10 @@
 # https://aka.ms/yaml
 
 trigger:
-- master
+- main
 
 pr:
-- master
+- main
 
 pool:
   vmImage: windows-2019
@@ -14,9 +14,26 @@ stages:
   jobs:
   - job: Build
     steps:
-      - task: PowerShell@2
-        displayName: 'Starting Cosmos Emulator'
+      - checkout: self
+        fetchDepth: 0
+      - task: gitversion/setup@0
+        displayName: Install GitVersion
         inputs:
+          versionSpec: '5.x'
+      - task: gitversion/execute@0
+        displayName: Determine GitVersion
+        inputs:
+          useConfigFile: true
+          configFilePath: $(Build.SourcesDirectory)/GitVersion.yml
+          targetPath: $(Build.SourcesDirectory)
+      - task: PowerShell@2
+        displayName: Starting Cosmos DB Emulator
+        inputs:
+          containerName: 'azure-cosmosdb-emulator'
+          enableAPI: 'SQL'
+          portMapping: '8081:8081, 8901:8901, 8902:8902, 8979:8979, 10250:10250, 10251:10251, 10252:10252, 10253:10253, 10254:10254, 10255:10255, 10256:10256, 10350:10350'
+          hostDirectory: '$(Build.BinariesDirectory)\azure-cosmosdb-emulator'
+          consistency: 'BoundedStaleness'
           targetType: 'inline'
           workingDirectory: $(Pipeline.Workspace)
           script: |
@@ -24,11 +41,11 @@ stages:
             Import-Module "C:/Program Files/Azure Cosmos DB Emulator/PSModules/Microsoft.Azure.CosmosDB.Emulator"
             Start-CosmosDbEmulator
       - task: PowerShell@2
-        displayName: 'Building'
+        displayName: Build and Test
         inputs:
           filePath: '.\build.ps1'
+          # arguments: '-Uri $(CosmosDbEmulator.Endpoint)'
       - task: PublishTestResults@2
-        displayName: 'Publish Test Results'
         condition: succeededOrFailed()
         inputs:
           testRunner: VSTest
@@ -40,21 +57,49 @@ stages:
       - task: PublishBuildArtifacts@1
         displayName: Publish Build Artifacts   
 - stage: Publish
-  condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/master'))
+  condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
   jobs:
     - job: Publish
       steps:
-        - task: DownloadBuildArtifacts@0
-          displayName: 'Download artifacts'
+        - task: DotNetCoreCLI@2
+          displayName: Create NuGet Packages
           inputs:
-            artifactName: 'drop'
-            buildType: 'current'
-            downloadType: 'single'
-            downloadPath: '$(System.ArtifactsDirectory)'
-        - task: NuGetCommand@2
-          displayName: Publish package to nuget.org using ASOS organisation account
+            command: "pack"
+            versioningScheme: byEnvVar
+            versionEnvVar: NuGetVersion
+            packDestination: $(Build.ArtifactStagingDirectory)/package
+            arguments: "-o $(Build.ArtifactStagingDirectory)/package"
+            projects: |
+              **/*.csproj
+        - task: PublishBuildArtifacts@1
+          displayName: Publish build artifacts to Azure Pipelines   
           inputs:
-            command: 'push'
-            packagesToPush: '$(System.ArtifactsDirectory)/**/*.nupkg'
-            nuGetFeedType: 'external'
-            publishFeedCredentials: 'ASOS nuget.org feed'
+            PathtoPublish: '$(Build.ArtifactStagingDirectory)'
+            ArtifactName: 'drop'
+            publishLocation: 'Container'  
+
+- stage: Deploy
+  displayName: Publish Packages to Nuget
+  jobs:
+  - job: Deploy
+    condition: 
+        or(
+           in(variables['Build.SourceBranch'], 'refs/heads/main'), 
+           in(variables['Build.Reason'], 'Manual')
+        )
+    steps:
+      - task: DownloadBuildArtifacts@0
+        displayName: 'Download artifacts'
+        inputs:
+          buildType: 'current'
+          downloadType: 'single'
+          artifactName: 'drop'
+          itemPattern: 
+          downloadPath: '$(System.ArtifactsDirectory)'   
+      - task: NuGetCommand@2
+        displayName: Publish package to nuget.org using ASOS organisation account
+        inputs:
+          command: 'push'
+          packagesToPush: '$(System.ArtifactsDirectory)/drop/*.nupkg;!$(System.ArtifactsDirectory)/drop/*.symbols.nupkg'
+          nuGetFeedType: 'external'
+          publishFeedCredentials: 'ASOS nuget.org feed'
