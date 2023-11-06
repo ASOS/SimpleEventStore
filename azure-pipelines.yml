@@ -2,6 +2,7 @@
 
 trigger:
 - main
+- main
 
 pr:
 - main
@@ -40,46 +41,38 @@ stages:
             Write-Host "Starting CosmosDB Emulator"
             Import-Module "C:/Program Files/Azure Cosmos DB Emulator/PSModules/Microsoft.Azure.CosmosDB.Emulator"
             Start-CosmosDbEmulator
+
       - task: PowerShell@2
         displayName: Build and Test
         inputs:
           filePath: '.\build.ps1'
           # arguments: '-Uri $(CosmosDbEmulator.Endpoint)'
-      - task: PublishTestResults@2
-        condition: succeededOrFailed()
+      # - task: PublishTestResults@2
+      #   condition: succeededOrFailed()
+      #   inputs:
+      #     testRunner: VSTest
+      #     testResultsFiles: '**/*.trx'
+
+      - task: DotNetCoreCLI@2
+        displayName: Package
         inputs:
-          testRunner: VSTest
-          testResultsFiles: '**/*.trx'
-      - task: CopyFiles@2
-        inputs:
-          Contents: 'output\*.nupkg'
-          TargetFolder: '$(Build.ArtifactStagingDirectory)'
+          command: "pack"
+          versioningScheme: byEnvVar
+          versionEnvVar: NuGetVersion
+          packDestination: $(Build.ArtifactStagingDirectory)/package
+          arguments: "-o $(Build.ArtifactStagingDirectory)/package"
+          projects: |
+            **/*.csproj
+
       - task: PublishBuildArtifacts@1
         displayName: Publish Build Artifacts   
-- stage: Publish
-  condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
-  jobs:
-    - job: Publish
-      steps:
-        - task: DotNetCoreCLI@2
-          displayName: Create NuGet Packages
-          inputs:
-            command: "pack"
-            versioningScheme: byEnvVar
-            versionEnvVar: NuGetVersion
-            packDestination: $(Build.ArtifactStagingDirectory)/package
-            arguments: "-o $(Build.ArtifactStagingDirectory)/package"
-            projects: |
-              **/*.csproj
-        - task: PublishBuildArtifacts@1
-          displayName: Publish build artifacts to Azure Pipelines   
-          inputs:
-            PathtoPublish: '$(Build.ArtifactStagingDirectory)'
-            ArtifactName: 'drop'
-            publishLocation: 'Container'  
+        inputs:
+          PathtoPublish: '$(Build.ArtifactStagingDirectory)'
+          ArtifactName: 'drop'
+          publishLocation: 'Container'  
 
 - stage: Deploy
-  displayName: Publish Packages to Nuget
+  displayName: Deploy
   jobs:
   - job: Deploy
     condition: 
@@ -95,7 +88,8 @@ stages:
           downloadType: 'single'
           artifactName: 'drop'
           itemPattern: 
-          downloadPath: '$(System.ArtifactsDirectory)'   
+          downloadPath: '$(System.ArtifactsDirectory)'
+
       - task: NuGetCommand@2
         displayName: Publish package to nuget.org using ASOS organisation account
         inputs:
