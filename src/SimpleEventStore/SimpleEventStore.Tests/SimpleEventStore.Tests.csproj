@@ -14,7 +14,7 @@
   <PropertyGroup>
     <Title>SimpleEventStore.Tests</Title>
     <Company>ASOS</Company>
-    <Copyright>Copyright ASOS © 2020</Copyright>
+    <Copyright>Copyright ASOS © 2024</Copyright>
     <Product>SimpleEventStore.Tests</Product>
   </PropertyGroup>
 </Project>

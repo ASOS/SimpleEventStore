@@ -25,7 +25,7 @@
   <PropertyGroup>
     <Title>SimpleEventStore.CosmosDb.Tests</Title>
     <Company>ASOS</Company>
-    <Copyright>Copyright ASOS © 2020</Copyright>
+    <Copyright>Copyright ASOS © 2024</Copyright>
     <Product>SimpleEventStore.CosmosDb.Tests</Product>
   </PropertyGroup>
 </Project>

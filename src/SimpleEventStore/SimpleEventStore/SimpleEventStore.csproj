@@ -8,7 +8,7 @@
     <Title>ASOS.SimpleEventStore</Title>
     <Description>Simple Event Store (SES) provides a lightweight event sourcing abstraction.</Description>
     <Company>ASOS</Company>
-    <Copyright>Copyright ASOS © 2023</Copyright>
+    <Copyright>Copyright ASOS © 2024</Copyright>
     <Product>SimpleEventStore</Product>
     <PackageId>Asos.SimpleEventStore</PackageId>
     <Authors>ASOS</Authors>
