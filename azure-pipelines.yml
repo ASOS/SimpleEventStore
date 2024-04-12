@@ -8,7 +8,7 @@ pr:
 - main
 
 pool:
-  vmImage: windows-2019
+  vmImage: windows-latest
 stages:
 - stage: Build
   displayName: Build

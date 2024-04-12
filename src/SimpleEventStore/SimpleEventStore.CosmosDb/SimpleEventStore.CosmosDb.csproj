@@ -6,7 +6,7 @@
     <RootNamespace>SimpleEventStore.CosmosDb</RootNamespace>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="Microsoft.Azure.Cosmos" Version="3.32.0" />
+    <PackageReference Include="Microsoft.Azure.Cosmos" Version="3.38.1" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\SimpleEventStore\SimpleEventStore.csproj" />
@@ -15,7 +15,7 @@
     <Title>Asos.SimpleEventStore.CosmosDb</Title>
     <Description>Uses Azure Cosmos DB as the stream database for Simple Event Store (SES)</Description>
     <Company>ASOS</Company>
-    <Copyright>Copyright ASOS © 2023</Copyright>
+    <Copyright>Copyright ASOS © 2024</Copyright>
     <Product>SimpleEventStore.CosmosDb</Product>
     <PackageId>Asos.SimpleEventStore.CosmosDb</PackageId>
     <Authors>ASOS</Authors>

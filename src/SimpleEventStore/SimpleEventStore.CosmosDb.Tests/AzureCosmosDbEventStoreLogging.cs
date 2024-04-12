@@ -17,7 +17,7 @@ namespace SimpleEventStore.CosmosDb.Tests
 
             await sut.AppendToStream(streamId, 0, new EventData(Guid.NewGuid(), new OrderCreated("TEST-ORDER")));
 
-            Assert.NotNull(response);
+            Assert.That(response, Is.Not.Null);
             await TestContext.Out.WriteLineAsync($"Charge: {response.RequestCharge}");
             await TestContext.Out.WriteLineAsync($"Quota Usage: {response.CurrentResourceQuotaUsage}");
             await TestContext.Out.WriteLineAsync($"Max Resource Quote: {response.MaxResourceQuota}");
