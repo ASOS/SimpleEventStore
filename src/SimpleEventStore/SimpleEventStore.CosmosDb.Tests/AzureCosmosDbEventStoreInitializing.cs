@@ -46,11 +46,11 @@ namespace SimpleEventStore.CosmosDb.Tests
         {
             const int dbThroughput = 800;
             var collectionName = "SharedCollection_" + Guid.NewGuid();
+            
+            await InitialiseStorageEngine(collectionName, dbThroughput: dbThroughput);
 
-            var storageEngine = await InitialiseStorageEngine(collectionName, dbThroughput: dbThroughput);
-
-            Assert.AreEqual(dbThroughput, await GetDatabaseThroughput());
-            Assert.AreEqual(null, await GetCollectionThroughput(collectionName));
+            Assert.That(dbThroughput, Is.EqualTo(await GetDatabaseThroughput()));
+            Assert.That(await GetCollectionThroughput(collectionName), Is.Null);
         }
 
         [TestCase(60)]
@@ -82,16 +82,16 @@ namespace SimpleEventStore.CosmosDb.Tests
 
             await InitialiseStorageEngine(collectionName, collectionThroughput, dbThroughput);
 
-            Assert.AreEqual(dbThroughput, await GetDatabaseThroughput());
-            Assert.AreEqual(collectionThroughput, await GetCollectionThroughput(collectionName));
+            Assert.That(dbThroughput, Is.EqualTo(await GetDatabaseThroughput()));
+            Assert.That(collectionThroughput, Is.EqualTo(await GetCollectionThroughput(collectionName)));
 
             dbThroughput = 1600;
             collectionThroughput = 800;
 
             await InitialiseStorageEngine(collectionName, collectionThroughput, dbThroughput);
 
-            Assert.AreEqual(dbThroughput, await GetDatabaseThroughput());
-            Assert.AreEqual(collectionThroughput, await GetCollectionThroughput(collectionName));
+            Assert.That(dbThroughput, Is.EqualTo(await GetDatabaseThroughput()));
+            Assert.That(collectionThroughput, Is.EqualTo(await GetCollectionThroughput(collectionName)));
         }
 
         [TestCase(null, null, null, 400)]
@@ -104,11 +104,10 @@ namespace SimpleEventStore.CosmosDb.Tests
         {
             var collectionName = "CollectionThroughput_" + Guid.NewGuid();
 
+            await InitialiseStorageEngine(collectionName, collectionThroughput, dbThroughput);
 
-            var storageEngine = await InitialiseStorageEngine(collectionName, collectionThroughput, dbThroughput);
-
-            Assert.AreEqual(expectedDbThroughput, await GetDatabaseThroughput());
-            Assert.AreEqual(expectedCollectionThroughput, await GetCollectionThroughput(collectionName));
+            Assert.That(expectedDbThroughput, Is.EqualTo(await GetDatabaseThroughput()));
+            Assert.That(expectedCollectionThroughput, Is.EqualTo(await GetCollectionThroughput(collectionName)));
         }
 
 
@@ -120,10 +119,10 @@ namespace SimpleEventStore.CosmosDb.Tests
             await CreateDatabase(existingDbThroughput);
             var collectionName = "CollectionThroughput_" + Guid.NewGuid();
 
-            var storageEngine = await InitialiseStorageEngine(collectionName, collectionThroughput, null);
+            await InitialiseStorageEngine(collectionName, collectionThroughput, null);
 
-            Assert.AreEqual(expectedDbThroughput, await GetDatabaseThroughput());
-            Assert.AreEqual(expectedCollectionThroughput, await GetCollectionThroughput(collectionName));
+            Assert.That(expectedDbThroughput, Is.EqualTo(await GetDatabaseThroughput()));
+            Assert.That(expectedCollectionThroughput, Is.EqualTo(await GetCollectionThroughput(collectionName)));
         }
 
         private static async Task<IStorageEngine> InitialiseStorageEngine(string collectionName, int? collectionThroughput = null,
